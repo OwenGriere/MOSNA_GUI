@@ -69,7 +69,7 @@ def aggregated_niches(method, net_dir, save_dir, temp_dir ,attributes_col, pheno
     files = find_sample(net_dir, "parquet", id_level_1, id_level_2)
     frames = []
     for f in files:
-        df = pd.read_parquet(f, columns=['cell_id', pheno_col])
+        df = pd.read_parquet(f)
         patient, sample = find_sample_from_file(f, id_level_1, id_level_2)
         df[id_level_1] = patient
         df[id_level_2] = sample
