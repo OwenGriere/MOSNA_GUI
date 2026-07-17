@@ -1154,7 +1154,7 @@ class ParametersPanel(QWidget):
     FIXED_OPTIONS = {
         "Niches method": ["NAS", "SCAN-IT"],
         "Processing method": ["Aggregated nodes", "Per sample"],
-        "reducer_type": ["umap"],
+        "reducer_type": ["umap","none"],
         "clusterer_type": ["leiden", "ecg", "spectral", "gmm", "hdbscan"],
         "order": ["1", "2"],
         "metric": ["manhattan", "euclidean", "cosine"],

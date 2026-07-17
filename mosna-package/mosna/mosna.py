@@ -4141,6 +4141,7 @@ def get_reducer(
                 embedding = reducer.fit_transform(data)
         elif reducer_type == 'none':
             reducer = {'reducer_type': 'none'}
+            save_reduced_coords = save_reducer = False
             if isinstance(data, pd.DataFrame):
                 embedding = data.values
             else:
