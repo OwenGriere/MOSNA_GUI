@@ -29,7 +29,7 @@ def main():
     config_path, working_dir = get_arguments()
     config = get_config(config_path)[analyse]
     working_dir = Path(working_dir)
-    
+
     assert_params(analyse, config)
 
     with_aggregation = per_sample = False
