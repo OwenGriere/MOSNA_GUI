@@ -1,6 +1,6 @@
-# MOSNA GUI
 
-A graphical interface for [MOSNA](https://github.com/PancaldiLab/MOSNA) and [Tysserand](https://github.com/PancaldiLab/tysserand) — spatial network construction and analysis tools developed by **PancaldiLAB**.
+<h1 align="center">A graphical interface for [MOSNA](https://github.com/PancaldiLab/MOSNA) and [Tysserand](https://github.com/PancaldiLab/tysserand) — spatial network construction and analysis tools developed by **PancaldiLAB**</h1>
+
 
 ---
 
