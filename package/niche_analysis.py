@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from pathlib import Path
 import shutil
@@ -20,6 +21,61 @@ from mosna import mosna
 
 def worker_draw(args):
     return draw_per_sample(*args)
+
+
+# Les statistiques d'agrégation sont écrites dans la configuration sous forme de
+# noms (`np.mean,np.std` ou `[np.mean, np.std]`), alors que `make_features_NAS`
+# attend des fonctions. Le passage direct de la chaîne était silencieusement
+# faux : une chaîne est itérable, donc `zip(stat_funcs, stat_names)` parcourait
+# ses caractères.
+_STAT_FUNCS = {
+    "np.mean": np.mean, "mean": np.mean,
+    "np.std": np.std, "std": np.std,
+}
+
+
+def resolve_stats(section):
+    """(stat_funcs, stat_names) tels que `make_features_NAS` les attend.
+
+    Rend ('default', 'default') quand rien n'est demandé, ce qui laisse mosna
+    choisir la moyenne et l'écart-type.
+    """
+    raw_funcs = section.get("stat_funcs", "default")
+    raw_names = section.get("stat_names", "default")
+
+    if raw_funcs in (None, "", "default"):
+        return "default", "default"
+
+    if isinstance(raw_funcs, str):
+        raw_funcs = [item.strip() for item in raw_funcs.split(",") if item.strip()]
+
+    funcs = []
+    for item in raw_funcs:
+        if callable(item):
+            funcs.append(item)
+            continue
+        key = item.strip() if isinstance(item, str) else item
+        if key not in _STAT_FUNCS:
+            raise ValueError(
+                f"statistique d'agrégation inconnue : {item!r}. "
+                f"Valeurs acceptées : {sorted(_STAT_FUNCS)}"
+            )
+        funcs.append(_STAT_FUNCS[key])
+
+    if isinstance(raw_names, str) and raw_names != "default":
+        names = [item.strip() for item in raw_names.split(",") if item.strip()]
+    elif isinstance(raw_names, (list, tuple)):
+        names = [str(item) for item in raw_names]
+    else:
+        names = [getattr(f, "__name__", str(f)) for f in funcs]
+
+    if len(names) != len(funcs):
+        raise ValueError(
+            f"stat_funcs ({len(funcs)}) et stat_names ({len(names)}) n'ont pas la "
+            "même longueur : les colonnes seraient tronquées sans erreur"
+        )
+    return funcs, names
+
 
 def main():
 
@@ -81,16 +137,22 @@ def main():
 
         save_dir = working_dir / "Niche_Analysis/Aggregation" / config['Saving directory']
         save_dir.mkdir(exist_ok=True, parents=True)
+        # `stat_funcs`, `stat_names` et `order` vivent dans la sous-section, pas
+        # au premier niveau : le `config.get(...)` d'origine ne les trouvait
+        # jamais et rendait le défaut, donc les régler dans l'interface n'avait
+        # aucun effet. Idem pour la méthode, écrite `Niches method`.
+        stat_funcs, stat_names = resolve_stats(config["Aggregated nodes"])
         kwargs = {
-            "method": config.get("method", "NAS"),
+            "method": config.get("Niches method", "NAS"),
             "net_dir": net_dir,
             "save_dir": save_dir,
             "temp_dir": net_dir,
-            "attributes_col": config["Column to aggregate"], 
+            "attributes_col": config["Column to aggregate"],
             "pheno_col": config['Phenotype column'],
-            "uniq_pheno": uniq_phenotype,   
-            "stat_funcs": config.get("stat_funcs", "default"),
-            "stat_names": config.get("stat_names", "default"),
+            "uniq_pheno": uniq_phenotype,
+            "stat_funcs": stat_funcs,
+            "stat_names": stat_names,
+            "order": int(config["Aggregated nodes"].get("order", 1)),
             "id_level_1": config.get("Patient column name", "patient"),
             "id_level_2": config.get("Sample column name", "sample"),
 
@@ -178,15 +240,19 @@ def main():
                 patient_sample = f'{config.get("Patient column name", "patient")}-{sample[0]}_{config.get("Sample column name", "sample")}-{sample[1]}'
             save_dir_sample = save_dir / f'{patient_sample}'
 
+            # Même correction que pour le chemin agrégé : la sous-section, pas le
+            # premier niveau.
+            stat_funcs, stat_names = resolve_stats(config["Per sample"])
             kwargs = {
-                "method": config.get("method", "NAS"),
+                "method": config.get("Niches method", "NAS"),
                 "net_dir": net_dir,
                 "save_dir": save_dir_sample,
                 "data_info": sample,
-                "pheno_col": config["Column to aggregate"], 
-                "uniq_phenotype": uniq_phenotype,    
-                "stat_funcs": config.get("stat_funcs", "default"),
-                "stat_names": config.get("stat_names", "default"),
+                "pheno_col": config["Column to aggregate"],
+                "uniq_phenotype": uniq_phenotype,
+                "stat_funcs": stat_funcs,
+                "stat_names": stat_names,
+                "order": int(config["Per sample"].get("order", 1)),
                 "id_level_1": config.get("Patient column name", "patient"),
                 "id_level_2": config.get("Sample column name", "sample"),
 

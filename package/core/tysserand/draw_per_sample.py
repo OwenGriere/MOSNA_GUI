@@ -32,8 +32,12 @@ def draw_per_sample(node_file,
     node = opener(node_file)
     
     patient, sample = find_sample_from_file(node_file, patient_colmun, sample_column)
-    patient = int("".join(c for c in patient if c.isdigit()))
-    
+    # L'identifiant est repris tel qu'il apparaît dans le nom de fichier. Le
+    # `int()` qui était appliqué ici transformait `nodes_patient-01.csv` en
+    # `nodes_patient-1.parquet` : les fichiers écrits dans temp/net_dir_mosna ne
+    # portaient plus le même identifiant que les fichiers d'entrée, et un
+    # identifiant sans chiffre (`P01a`, un code-barres) levait une ValueError.
+
     clustering = node[pheno_col]
 
     coords = node[[X_position,Y_position]].to_numpy()

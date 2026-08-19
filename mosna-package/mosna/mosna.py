@@ -85,6 +85,50 @@ def to_numpy(data):
     return data
 
 
+def knn_pairs(data, k, metric='euclidean'):
+    """Paires uniques du graphe des k plus proches voisins.
+
+    Remplace `tysserand.build_knn` pour la construction du graphe donné aux
+    clusterers de graphe.
+
+    `tysserand.pairs_from_knn` construit ses paires avec
+    `np.repeat(ind[:, 0], NN - 1)`, ce qui suppose que la première colonne de la
+    requête est le point lui-même. La supposition tombe dès qu'il existe des
+    vecteurs identiques, puisque la requête casse les égalités arbitrairement —
+    et les features NAS en comptent beaucoup : la composition d'un voisinage de
+    six cellules ne prend que peu de valeurs distinctes. Sur une cohorte de
+    4 000 cellules et 6 phénotypes, 55 % des lignes étaient des doublons exacts,
+    la supposition tombait pour 55 % des points, 379 nœuds se retrouvaient sans
+    aucune arête et le graphe se cassait en 385 composantes connexes au lieu de
+    6. Leiden ne pouvant pas fusionner des composantes disjointes, il rendait
+    ces fragments comme autant de niches — 250 au lieu d'une dizaine, sans que
+    la résolution y change quoi que ce soit.
+
+    Ici le point est identifié par son indice et non par sa position dans la
+    liste de voisins, et chaque point reçoit exactement `k` voisins. La requête
+    est exacte : `build_knn` basculait sur un index approximatif au-delà de
+    3 000 points, ce qui rendait le graphe dépendant d'une heuristique.
+    """
+    from sklearn.neighbors import NearestNeighbors
+
+    data = np.asarray(data)
+    n = len(data)
+    if n < 2 or k < 1:
+        return np.zeros((0, 2), dtype=int)
+
+    k = min(k, n - 1)
+    tree = NearestNeighbors(n_neighbors=min(k + 1, n), metric=metric).fit(data)
+    _, ind = tree.kneighbors(data)
+
+    # On retire le point lui-même où qu'il soit dans la liste, puis on garde ses
+    # k premiers voisins : chaque point contribue k paires, égalités ou non.
+    own = np.arange(n)[:, None]
+    targets = np.array([row[row != i][:k] for i, row in zip(own.ravel(), ind)])
+    sources = np.repeat(own.ravel(), targets.shape[1])
+    pairs = np.stack([sources, targets.ravel()], axis=1)
+    return ty.remove_duplicate_pairs(pairs)
+
+
 def renormalize(data, mini, maxi):
     data = data - np.min(data)
     data = data / np.max(data)
@@ -1291,6 +1335,15 @@ def make_group_network_stats(
         nodes = nodes.join(pd.get_dummies(nodes[attributes_col], prefix='', prefix_sep=''))
     if use_attributes is None:
         use_attributes = np.unique(nodes[attributes_col])
+    else:
+        # Un attribut présent dans la cohorte mais absent de cet échantillon n'a
+        # pas de colonne indicatrice : on la crée à zéro. C'est la valeur juste —
+        # ce couple d'attributs n'apparaît jamais — et cela donne à tous les
+        # échantillons une matrice de mélange de même forme, donc des colonnes
+        # comparables dans net_stat.csv au lieu d'une ligne de NaN.
+        missing = [col for col in use_attributes if col not in nodes.columns]
+        for col in missing:
+            nodes[col] = 0
     # compute network statistics
     group_data = sample_assort_mixmat(
         nodes, edges, 
@@ -4358,7 +4411,10 @@ def get_clusterer(
                 # from the UMAP documentation:
                 # "By default UMAP embeds data into Euclidean space"
                 # so the clusterer should use the Euclidean metric
-                embedding_pairs = ty.build_knn(embedding, k=k_cluster, metric='euclidean')
+                # `knn_pairs` et non `ty.build_knn` : voir la docstring de
+                # `knn_pairs`, dont la version tysserand laisse des nœuds isolés
+                # quand des vecteurs de features sont identiques.
+                embedding_pairs = knn_pairs(embedding, k=k_cluster, metric='euclidean')
 
                 if gpu_clustering:
                     # send edges to GPU, with dummy weights

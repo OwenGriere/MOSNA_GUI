@@ -7,10 +7,10 @@ from package.core.NAS.plot_embedding import plot_embedding
 from package.utils.find_sample_from_file import find_sample_from_file
 from package.utils.find_sample import find_sample
 
-def aggregated_niches(method, net_dir, save_dir, temp_dir ,attributes_col, pheno_col, uniq_pheno, stat_funcs, stat_names, id_level_1, id_level_2, 
-                     reducer_type, clusterer_type, n_neighbors, metric, n_clusters, resolution, min_dist, dim_clust, 
-                     min_cluster_size, k_cluster, normalize):
-    
+def aggregated_niches(method, net_dir, save_dir, temp_dir ,attributes_col, pheno_col, uniq_pheno, stat_funcs, stat_names, id_level_1, id_level_2,
+                     reducer_type, clusterer_type, n_neighbors, metric, n_clusters, resolution, min_dist, dim_clust,
+                     min_cluster_size, k_cluster, normalize, order=1):
+
     emit_qt_info("[PROCESS] Spatial Omic Features for all networks")
     emit_qt_progress(0,3, "[PROCESS] Niches Analysis")
     make_onehot = False
@@ -29,6 +29,7 @@ def aggregated_niches(method, net_dir, save_dir, temp_dir ,attributes_col, pheno
             make_onehot=make_onehot,
             stat_funcs=stat_funcs,
             stat_names=stat_names,
+            order=order,
             id_level_1=id_level_1,
             id_level_2=id_level_2,
             parallel_groups='max',
@@ -42,8 +43,20 @@ def aggregated_niches(method, net_dir, save_dir, temp_dir ,attributes_col, pheno
     emit_qt_progress(1,3, "[PROCESS] Niches Analysis")
 
     emit_qt_info("[PROCESS] Reduction and Clustering of Spatial Niches")
+    # `compute_spatial_omic_features_*` ajoute les colonnes d'identifiants en fin
+    # de table pour pouvoir remettre chaque ligne sur sa cellule. Ce sont des
+    # métadonnées : passées au réducteur elles deviennent des variables, et comme
+    # un id patient vaut 1, 2, 3, 4 quand une composition de voisinage vaut entre
+    # 0 et 1, elles dominent la distance. Sur une cohorte de quatre échantillons,
+    # la partition obtenue retrouvait l'échantillon d'origine (ARI 0,64) et pas
+    # les niches (ARI 0,02). L'ordre des lignes suffit à l'appariement : il est
+    # conservé, et `var_aggreg[[id_level_1, id_level_2]]` sert plus bas à
+    # réaligner les types cellulaires.
+    id_cols = [col for col in (id_level_1, id_level_2) if col in var_aggreg.columns]
+    features_only = var_aggreg.drop(columns=id_cols)
+
     cluster_labels, clusterer_dir, _, _ = mosna.get_clusterer(
-        data=var_aggreg.values,
+        data=features_only.values,
         data_dir=save_dir,
         reducer_type=reducer_type,
         clusterer_type=clusterer_type,
