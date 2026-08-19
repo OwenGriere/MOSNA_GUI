@@ -50,7 +50,7 @@ def assert_params(analyse_to_perform, config):
 
             assert isinstance(config[verification_process]["n_clusters"], int), "n_clusters must be int"
             assert isinstance(config[verification_process]["reducer_type"], str), 'reducer type must be str'
-            assert config[verification_process]["reducer_type"] in ['umap']
+            assert config[verification_process]["reducer_type"] in ['umap', 'none']
 
             assert isinstance(config[verification_process]["metric"], str), "metric must be str"
             assert config[verification_process]["metric"] in ['manhattan', 'euclidean', 'cosine']

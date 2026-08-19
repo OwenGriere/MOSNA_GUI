@@ -41,7 +41,7 @@ def aggregated_niches(method, net_dir, save_dir, temp_dir ,attributes_col, pheno
         var_aggreg.to_parquet(temp_dir / "var_aggreg.parquet")
 
     emit_qt_progress(1,3, "[PROCESS] Niches Analysis")
-
+    
     emit_qt_info("[PROCESS] Reduction and Clustering of Spatial Niches")
     # `compute_spatial_omic_features_*` ajoute les colonnes d'identifiants en fin
     # de table pour pouvoir remettre chaque ligne sur sa cellule. Ce sont des

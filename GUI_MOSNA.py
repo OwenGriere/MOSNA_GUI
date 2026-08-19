@@ -1686,7 +1686,7 @@ class ParametersPanel(QWidget):
         else:
             val = widget.text().strip()
 
-        if key == "order":
+        if key in ("order", "reducer_type"):
             return val
         if val.lower() in ("none", "null", ""):
             return None

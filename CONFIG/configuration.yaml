@@ -1,56 +1,53 @@
 Tysserand:
   Nodes directory: /home/owen.griere/Desktop/Xenium_analysis/nodes_mapped/mes_chunks_4/nodes
   Patient column name: patient
-  Sample column name: chunk
+  Sample column name: sample
   Extension: parquet
-  X coordinates column: x_centroid
-  Y coordinates column: y_centroid
-  Phenotype column: phenotype
+  X coordinates column: null
+  Y coordinates column: null
+  Phenotype column: null
   Edges method: delaunay
   Min neighbors: 3
   CPU: 20
 Assortativity:
-  Network directory: /home/owen.griere/Desktop/Xenium_analysis/nodes_mapped/mes_chunks_4
+  Network directory: /home/owen.griere/Desktop/IMC-IF_Pierre/temp/mIF_C1
   Phenotype column: null
   Patient column name: patient
-  Sample column name: chunk
+  Sample column name: sample
   Extension: parquet
   Index: index
   Number of shuffle: 50
   Randomization diagnostic: false
 Niche Analysis:
-  Network directory: /home/owen.griere/Desktop/Xenium_analysis/nodes_mapped/mes_chunks_4
-  Saving directory: niche_1
+  Network directory: /home/owen.griere/Desktop/IMC-IF_Pierre/temp/mIF_C1
+  Saving directory: niche_marker
   Extension: parquet
   Patient column name: patient
-  Sample column name: chunk
+  Sample column name: sample
   Processing method: Aggregated nodes
   Niches method: NAS
-  Phenotype column: null
-  Column to aggregate: null
-  Plot Network: true
+  Phenotype column: Cluster
+  Column to aggregate: [CD206, CD163, CD68, CD16]
+  Plot Network: false
   X coordinates column for niches: null
   Y coordinates column for niches: null
   CPU: 20
   Aggregated nodes:
-    order: '1'
-    stat_funcs: np.mean,np.std
-    stat_names: [mean, std]
-    reducer_type: umap
+    reducer_type: none
     dim_clust: 3
     n_neighbors: 20
     metric: cosine
     min_dist: 0.0
     clusterer_type: gmm
-    k_cluster: 20
-    n_clusters: 7
-    resolution: 0.05
+    k_cluster: 10
+    n_clusters: 10
+    resolution: 0.0001
     min_cluster_size: 100
     normalize: all
+    order: '1'
+    stat_funcs: np.mean,np.std
+    stat_names: [mean, std]
   Per sample:
-    order: '1'
-    stat_funcs: np.mean,np.std
-    stat_names: [mean, std]
     reducer_type: umap
     dim_clust: 3
     n_neighbors: 20
@@ -62,3 +59,6 @@ Niche Analysis:
     resolution: 0.05
     min_cluster_size: 100
     normalize: all
+    order: '1'
+    stat_funcs: np.mean,np.std
+    stat_names: [mean, std]
