@@ -243,6 +243,14 @@ impl MosnaApp {
             self.notice = Some(format!("Failed to save config:\n{error}"));
             return;
         }
+        // The menu greys out what the tool does not offer yet, but a
+        // configuration written by hand — or carried over from a previous
+        // version — can still name it, and then the button would start the
+        // very path the menu refuses.
+        if let Some(problem) = self.unavailable_setting() {
+            self.notice = Some(problem);
+            return;
+        }
 
         let arguments = step.arguments(&self.config_path, &working_dir);
         self.log.clear();
@@ -322,6 +330,33 @@ impl MosnaApp {
         }
     }
 
+    /// A setting the configuration names and the interface does not offer.
+    ///
+    /// Checked against the *document*, not against the form: the form cannot
+    /// hold one — its menus refuse them — but the file it was built from can.
+    fn unavailable_setting(&self) -> Option<String> {
+        for (section, key) in [
+            (mosna_config::section::TYSSERAND, "Edges method"),
+            (mosna_config::section::NICHE_ANALYSIS, "Processing method"),
+            (mosna_config::section::NICHE_ANALYSIS, "Niches method"),
+        ] {
+            // `continue`, not `?`: a section that does not carry this key is
+            // a section with nothing to object to, not a reason to stop
+            // checking the others. As `?` it was, and the check never reached
+            // past the first absent key.
+            let Some(value) = self.config.get(section, key).and_then(|v| v.as_str()) else {
+                continue;
+            };
+            let reasons = crate::model::field::unavailable_options(key);
+            if let Some((_, reason)) = reasons.iter().find(|(name, _)| *name == value) {
+                return Some(format!(
+                    "`{key}` is set to `{value}`, which this version cannot run.\n\n{reason}\n\n                     Choose another value in the Parameters panel."
+                ));
+            }
+        }
+        None
+    }
+
     /// Ask the running analysis to stop.
     pub fn stop(&mut self) {
         if let Some(run) = &mut self.run {
@@ -374,20 +409,8 @@ impl MosnaApp {
         } else {
             self.status = format!("❌ {} failed in {duration}", step.label());
             self.progress = Some((0, 1));
-            // The last line that is neither progress nor routine info is the
-            // one that says what actually went wrong.
-            let reason = self
-                .log
-                .iter()
-                .rev()
-                .map(|(_, line)| line.as_str())
-                .find(|line| {
-                    !line.contains("[QT_PROGRESS]")
-                        && !line.contains("[QT_INFO]")
-                        && !line.trim().is_empty()
-                })
-                .unwrap_or("Unknown error.")
-                .to_string();
+            let reason =
+                crate::model::runner::failure_reason(self.log.iter().map(|(_, l)| l.as_str()));
             self.notice = Some(format!("{}\n\n{reason}", step.label()));
         }
     }
@@ -544,6 +567,38 @@ mod tests {
         app.start(Step::Tysserand);
         assert!(app.run.is_none());
         assert!(app.notice.as_deref().unwrap().contains("working directory"));
+    }
+
+    /// The menu refuses `Per sample`; so must the button, because a file can
+    /// name it even though the menu cannot.
+    #[test]
+    fn a_configuration_naming_an_unavailable_setting_does_not_start() {
+        let mut app = app();
+        app.config.set(
+            mosna_config::section::NICHE_ANALYSIS,
+            "Processing method",
+            serde_yaml::Value::String("Per sample".into()),
+        );
+        // The form is rebuilt from the document, or saving would write the
+        // panel's value straight back over it.
+        app.form = Form::from_config(&app.config);
+
+        app.start(Step::NicheAnalysis);
+
+        assert!(app.run.is_none(), "the unavailable path was started");
+        let notice = app.notice.as_deref().expect("a refusal");
+        assert!(notice.contains("Per sample"), "{notice}");
+        assert!(
+            notice.contains("Parameters"),
+            "the refusal does not say where to change it: {notice}"
+        );
+    }
+
+    /// And a configuration that names nothing unavailable is not held up.
+    #[test]
+    fn an_ordinary_configuration_is_not_refused() {
+        let app = app();
+        assert!(app.unavailable_setting().is_none());
     }
 
     #[test]
