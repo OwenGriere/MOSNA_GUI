@@ -178,6 +178,14 @@ fn sections(app: &mut MosnaApp, ui: &mut egui::Ui) {
     }
 }
 
+/// Why an option cannot be picked, or `None` when it can.
+fn unavailable_reason(key: &str, option: &str) -> Option<&'static str> {
+    crate::model::field::unavailable_options(key)
+        .iter()
+        .find(|(name, _)| *name == option)
+        .map(|(_, reason)| *reason)
+}
+
 /// The text a field's label shows: its key, marked when a tooltip is attached.
 fn caption_of(field: &crate::model::field::Field) -> String {
     match field.tooltip {
@@ -189,6 +197,7 @@ fn caption_of(field: &crate::model::field::Field) -> String {
 /// Draw one field. Returns `true` when the user changed it.
 fn draw_field(ui: &mut egui::Ui, field: &mut crate::model::field::Field) -> bool {
     let id = egui::Id::new(("field", &field.key));
+    let key = field.key.clone();
     match &mut field.kind {
         FieldKind::Text { text } => ui
             .add(egui::TextEdit::singleline(text).desired_width(ui.available_width()))
@@ -202,8 +211,22 @@ fn draw_field(ui: &mut egui::Ui, field: &mut crate::model::field::Field) -> bool
                 .wrap_mode(egui::TextWrapMode::Truncate)
                 .show_ui(ui, |ui| {
                     for (index, option) in options.iter().enumerate() {
-                        if ui.selectable_value(selected, index, option).clicked() {
-                            changed = true;
+                        // An option the tool does not offer yet is shown and
+                        // refused, rather than hidden: see
+                        // `field::unavailable_options`.
+                        match unavailable_reason(&key, option) {
+                            Some(reason) => {
+                                ui.add_enabled_ui(false, |ui| {
+                                    ui.selectable_label(*selected == index, option)
+                                })
+                                .response
+                                .on_disabled_hover_text(reason);
+                            }
+                            None => {
+                                if ui.selectable_value(selected, index, option).clicked() {
+                                    changed = true;
+                                }
+                            }
                         }
                     }
                 });

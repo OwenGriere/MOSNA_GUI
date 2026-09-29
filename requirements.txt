@@ -6,6 +6,13 @@
 #  The interface itself is not here: it is a Rust program, built by
 #  setup.sh with `cargo build --release`. What this file describes is
 #  the environment the *analyses* run in.
+#
+#  The bounds below are the ones an environment built by setup.sh
+#  actually ends up with, read back from a working install. conda is
+#  asked for a few of these first, but `pip install mosna-package`
+#  resolves the scientific stack afterwards and has the last word — so
+#  a bound written here that conda alone would satisfy is a bound that
+#  does not hold.
 # =============================================================
 
 # --- Config ---
@@ -13,12 +20,12 @@ PyYAML>=6.0,<7.0
 
 # --- Data ---
 pandas>=2.0,<3.0
-pyarrow>=14.0,<16.0
+pyarrow>=14.0
 
 # --- Scientific (must match conda-forge versions in setup scripts) ---
-scipy>=1.13,<1.14
+scipy>=1.13,<2.0
 scikit-learn>=1.3,<2.0
-numpy>=1.24,<2.0
+numpy>=1.24,<3.0
 networkx>=3.0,<4.0
 matplotlib>=3.7,<4.0
 seaborn>=0.13,<1.0

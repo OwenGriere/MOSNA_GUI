@@ -160,6 +160,58 @@ fn anything_else_is_a_text_box() {
     assert!(matches!(field.kind, FieldKind::Text { .. }));
 }
 
+/// `Per sample` is offered by the menu and refused by it.
+///
+/// Both halves matter. Dropping it from the list would answer "can this run
+/// per sample?" with silence; leaving it pickable would let a user start a
+/// path that has never been verified against real data.
+#[test]
+fn an_option_that_is_not_available_is_still_shown() {
+    use mosna_gui::model::field::{is_available, unavailable_options};
+
+    let field = Field::for_key(
+        "Processing method",
+        &Value::String("Aggregated nodes".into()),
+    );
+    match &field.kind {
+        FieldKind::Choice { options, .. } => assert!(
+            options.iter().any(|o| o == "Per sample"),
+            "the menu no longer shows it at all"
+        ),
+        other => panic!("expected a choice, got {other:?}"),
+    }
+
+    assert!(!is_available("Processing method", "Per sample"));
+    assert!(is_available("Processing method", "Aggregated nodes"));
+
+    // And it says why, because a control that refuses without a reason reads
+    // as broken rather than as not ready.
+    let (_, reason) = unavailable_options("Processing method")[0];
+    assert!(reason.len() > 30, "no real explanation: {reason}");
+}
+
+/// Nothing else is withheld: every other menu offers what it lists.
+#[test]
+fn no_other_menu_withholds_an_option() {
+    use mosna_gui::model::field::unavailable_options;
+
+    for key in [
+        "Niches method",
+        "clusterer_type",
+        "reducer_type",
+        "metric",
+        "Edges method",
+        "normalize",
+        "order",
+        "stat_funcs",
+    ] {
+        assert!(
+            unavailable_options(key).is_empty(),
+            "`{key}` withholds an option without that being stated anywhere"
+        );
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Reading a widget back
 // ---------------------------------------------------------------------------

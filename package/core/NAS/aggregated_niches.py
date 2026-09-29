@@ -4,6 +4,7 @@ from package.utils.emit_qt_progress import emit_qt_progress, emit_qt_info
 from package.core.NAS.merge_niche_pheno import merge_niche_pheno
 from package.core.NAS.mosna_figures import mosna_figures
 from package.core.NAS.plot_embedding import plot_embedding
+from package.core.NAS.write_niches_back import write_niches_back
 from package.utils.find_sample_from_file import find_sample_from_file
 from package.utils.find_sample import find_sample
 
@@ -103,6 +104,19 @@ def aggregated_niches(method, net_dir, save_dir, temp_dir, working_dir, attribut
         save_data=True,
         force_recompute=False,
     )
+
+    # La niche de chaque cellule, réécrite dans le fichier dont elle vient.
+    # C'est ce qui permet au redessin de colorer les réseaux par niche, et ce
+    # qui rend les étiquettes réutilisables ailleurs.
+    written = write_niches_back(
+        net_dir=net_dir,
+        var_aggreg_samples_info=var_aggreg_samples_info,
+        cluster_labels=cluster_labels,
+        id_level_1=id_level_1,
+        id_level_2=id_level_2,
+    )
+    emit_qt_info(f"[INFO] Niches written back into {written} network file(s)")
+
     emit_qt_info("[PROCESS] Generate Niches Composition")
     if normalize == 'all':
         for normalization in ['total', 'niche', 'obs', 'clr', 'niche&obs']:

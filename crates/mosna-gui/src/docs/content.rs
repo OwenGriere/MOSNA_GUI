@@ -769,9 +769,14 @@ fn parameters() -> Chapter {
                                  colonnes numériques sont utilisées telles quelles.")),
                             Row::new("Processing method", "string", T::new(
                                 "Whether niches are called once over the pooled cohort, or \
-                                 independently per sample.",
+                                 independently per sample. Only the pooled analysis is \
+                                 available: the per-sample path is shown in the menu, greyed \
+                                 out, because it has not been verified against real data.",
                                 "Si les niches sont déterminées une fois sur la cohorte \
-                                 entière, ou indépendamment par échantillon.")),
+                                 entière, ou indépendamment par échantillon. Seule l'analyse \
+                                 groupée est disponible : le chemin par échantillon figure \
+                                 dans le menu, grisé, faute d'avoir été éprouvé sur de vraies \
+                                 données.")),
                             Row::new("Niches method", "string", T::new(
                                 "How neighbourhood features are computed. NAS aggregates the \
                                  attributes of each cell's neighbours.",

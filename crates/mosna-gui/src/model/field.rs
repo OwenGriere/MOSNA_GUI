@@ -51,6 +51,34 @@ pub fn fixed_options(key: &str) -> Option<&'static [&'static str]> {
     })
 }
 
+/// Options a menu shows but will not let the user pick, with the reason.
+///
+/// # Why they are shown at all
+///
+/// Removing `Per sample` from the list would answer the question "can I run
+/// this per sample?" with silence, and silence reads as "this tool cannot do
+/// that" rather than as "not yet". Greyed out with a reason under the pointer,
+/// the menu says what exists, what is available, and why the two differ.
+///
+/// A configuration file that already names one is still shown as it is: the
+/// interface reports what the document says rather than quietly rewriting it.
+pub fn unavailable_options(key: &str) -> &'static [(&'static str, &'static str)] {
+    match key {
+        "Processing method" => &[(
+            "Per sample",
+            "Not available yet. Niches are called once over the pooled cohort;\n             the per-sample path has not been verified against real data.",
+        )],
+        _ => &[],
+    }
+}
+
+/// Whether `option` of `key` can be chosen.
+pub fn is_available(key: &str, option: &str) -> bool {
+    !unavailable_options(key)
+        .iter()
+        .any(|(name, _)| *name == option)
+}
+
 /// Explanations shown when hovering a parameter.
 pub fn tooltip(key: &str) -> Option<&'static str> {
     Some(match key {

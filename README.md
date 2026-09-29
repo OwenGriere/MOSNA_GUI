@@ -214,8 +214,8 @@ zoom, with every attribute still readable at the pointer.
 
 | Parameter | Description |
 |---|---|
-| **Saving directory** | Output subfolder name, under `Niche_Analysis/Aggregation` or `Niche_Analysis/Per_sample` |
-| **Processing method** | `Aggregated nodes` or `Per sample` |
+| **Saving directory** | Output subfolder name, under `Niche_Analysis/Aggregation` |
+| **Processing method** | `Aggregated nodes`. `Per sample` appears in the menu but is greyed out — that path is not verified yet |
 | **Niches method** | `NAS` (SCAN-IT is work in progress) |
 | **Phenotype column** | Cell type column |
 | **Column to aggregate** | Columns used in the aggregated network |
