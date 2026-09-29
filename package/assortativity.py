@@ -6,6 +6,7 @@ from tqdm import tqdm
 from package.utils.read_config import get_config, get_arguments
 from package.utils.assert_params import assert_params
 from package.utils.emit_qt_progress import emit_qt_info
+from package.utils.figure_queue import render
 from package.utils.read_extension import get_opener
 from package.utils.find_sample import find_sample
 from package.core.assortativity.assort_figures_abundance import assort_figures_abundance
@@ -35,6 +36,19 @@ def cohort_attributes(net_dir, pheno_col, extension, id_level_1, id_level_2):
 
 
 def main():
+    """Lance l'étape, et dessine ce qu'elle a décrit même si elle échoue.
+
+    Voir `niche_analysis.main` : une figure décrite puis perdue parce qu'un
+    échec est survenu avant la passe de rendu est un résultat jeté.
+    """
+    _, working_dir = get_arguments()
+    try:
+        _analyse()
+    finally:
+        render(Path(working_dir))
+
+
+def _analyse():
     analyse = "Assortativity"
 
     config_path, working_dir = get_arguments()
@@ -91,13 +105,17 @@ def main():
 
         emit_qt_info(f"[INFO] Assortativity table saved in {saving_folder}")
 
-        assort_figures_mixing_matrix(net_stat, saving_folder, is_sample=id_level_2)
-        assort_figures_mixing_matrix_without_diag(net_stat, saving_folder, is_sample=id_level_2)
-        assort_figures_heatmap(net_stat, saving_folder, True)
-        assort_figures_heatmap(net_stat, saving_folder, False)
-        assort_figures_abundance(net_stat, saving_folder)
-        assort_figures_mean_std_across_samples(net_stat, saving_folder, True)
-        assort_figures_mean_std_across_samples(net_stat, saving_folder, False)
+        # The figures are described here and drawn by `mosna_xy` in one pass
+        # at the end: one renderer start-up for the whole step rather than one
+        # per figure, and a queue that can be redrawn without recomputing the
+        # assortativity if a chart comes out wrong.
+        assort_figures_mixing_matrix(net_stat, saving_folder, working_dir, is_sample=id_level_2)
+        assort_figures_mixing_matrix_without_diag(net_stat, saving_folder, working_dir, is_sample=id_level_2)
+        assort_figures_heatmap(net_stat, saving_folder, working_dir, True)
+        assort_figures_heatmap(net_stat, saving_folder, working_dir, False)
+        assort_figures_abundance(net_stat, saving_folder, working_dir)
+        assort_figures_mean_std_across_samples(net_stat, saving_folder, working_dir, True)
+        assort_figures_mean_std_across_samples(net_stat, saving_folder, working_dir, False)
 
 if __name__ == '__main__':
     main()

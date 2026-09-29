@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
 # =============================================================
 #  MOSNA GUI — Linux / macOS installer
-#  Usage:  bash setup.sh [--no-shortcut] [--dev]
-#  Requirements: conda or miniconda reachable in PATH
+#  Usage:  bash setup.sh [--no-shortcut] [--no-rust] [--dev]
+#  Requirements: conda in PATH, and the Rust toolchain (cargo)
+#
+#  Two halves are built here. The analyses are Python and live in a
+#  conda environment; the interface is Rust and is compiled with
+#  cargo. Both are needed for the application to start, which is why
+#  one script does both rather than leaving the second to be
+#  discovered by the user when the launcher fails.
 # =============================================================
 
 set -euo pipefail
@@ -18,14 +24,17 @@ step()    { echo -e "\n${BOLD}── $* ──${RESET}"; }
 
 # ── Parse arguments ───────────────────────────────────────────
 CREATE_SHORTCUT=true
+BUILD_RUST=true
 DEV_MODE=true
 for arg in "$@"; do
     case "$arg" in
         --no-shortcut) CREATE_SHORTCUT=false ;;
+        --no-rust)     BUILD_RUST=false ;;
         --dev)         DEV_MODE=true ;;
         --help|-h)
-            echo "Usage: bash setup.sh [--no-shortcut] [--dev]"
+            echo "Usage: bash setup.sh [--no-shortcut] [--no-rust] [--dev]"
             echo "  --no-shortcut   Skip desktop launcher creation"
+            echo "  --no-rust       Skip compiling the interface (environment only)"
             echo "  --dev           Install mosna-package in editable mode"
             exit 0 ;;
         *) warn "Unknown argument: $arg" ;;
@@ -35,9 +44,14 @@ done
 # ── Project paths ─────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_NAME="mosna-GUI"
-PY_VER="3.10"
+# 3.11, not 3.10. The figures are drawn by `xy`, which declares
+# Requires-Python >= 3.11, and the analyses and the renderer share one
+# interpreter — so the environment the analyses live in is what has to be
+# new enough.
+PY_VER="3.11"
 MOSNA_PACKAGE_DIR="${SCRIPT_DIR}/mosna-package"
-GUI_SCRIPT="${SCRIPT_DIR}/GUI_MOSNA.py"
+RENDERER_DIR="${SCRIPT_DIR}/python"
+GUI_BINARY="${SCRIPT_DIR}/target/release/mosna-gui"
 LAUNCHER_SH="${SCRIPT_DIR}/MosnaGUI.sh"
 APP_NAME="Mosna GUI"
 ICON_FILE="${SCRIPT_DIR}/assets/logo.ico"
@@ -57,7 +71,6 @@ find_desktop() {
         "${HOME}/Bureau" \
         "${HOME}/Escritorio" \
         "${HOME}/Schreibtisch" \
-        "${HOME}/Escritorio" \
         "${HOME}/Bureaublad" \
         "${HOME}/Рабочий стол" \
         "${HOME}/桌面" \
@@ -72,6 +85,7 @@ find_desktop() {
     echo "${HOME}/Desktop"
 }
 DESKTOP_DIR="$(find_desktop)"
+
 # ── Banner ────────────────────────────────────────────────────
 echo -e "${BOLD}"
 echo "╔══════════════════════════════════════════════╗"
@@ -80,19 +94,25 @@ echo "╚═══════════════════════�
 echo -e "${RESET}"
 info "Project directory : ${SCRIPT_DIR}"
 info "Conda environment  : ${ENV_NAME}  (Python ${PY_VER})"
+info "Interface          : Rust, built with cargo"
 echo ""
 
 # ── Step 0: Sanity checks ─────────────────────────────────────
-step "Step 0/4 — Sanity checks"
+step "Step 1/6 — Sanity checks"
 
-if [ ! -f "${GUI_SCRIPT}" ]; then
-    error "GUI_MOSNA.py not found in ${SCRIPT_DIR}"
+if [ ! -f "${SCRIPT_DIR}/Cargo.toml" ] || [ ! -d "${SCRIPT_DIR}/crates/mosna-gui" ]; then
+    error "The Rust interface was not found in ${SCRIPT_DIR}"
     error "Run this script from the project root directory."
     exit 1
 fi
 
 if [ ! -d "${MOSNA_PACKAGE_DIR}" ]; then
     error "mosna-package directory not found: ${MOSNA_PACKAGE_DIR}"
+    exit 1
+fi
+
+if [ ! -d "${RENDERER_DIR}" ]; then
+    error "The figure renderer was not found: ${RENDERER_DIR}"
     exit 1
 fi
 
@@ -107,6 +127,20 @@ if ! command -v conda &>/dev/null; then
     exit 1
 fi
 
+# And cargo, unless the build was waived. Checked here rather than at the
+# point of use so a missing toolchain is reported before conda spends ten
+# minutes resolving an environment.
+if ${BUILD_RUST} && ! command -v cargo &>/dev/null; then
+    error "cargo is not available in your PATH."
+    echo ""
+    echo "  The interface is a Rust program. Install the toolchain with:"
+    echo "  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+    echo ""
+    echo "  Then open a new terminal and re-run this script."
+    echo "  To build only the Python environment for now: bash setup.sh --no-rust"
+    exit 1
+fi
+
 CONDA_BASE="$(conda info --base 2>/dev/null)"
 if [ -z "${CONDA_BASE}" ]; then
     error "Cannot determine conda base directory."
@@ -116,12 +150,28 @@ fi
 # shellcheck source=/dev/null
 source "${CONDA_BASE}/etc/profile.d/conda.sh"
 success "conda found at ${CONDA_BASE}"
+${BUILD_RUST} && success "cargo found: $(cargo --version)"
 
 # ── Step 1: Create / reuse environment ───────────────────────
-step "Step 1/4 — Conda environment"
+step "Step 2/6 — Conda environment"
 
 if conda env list | awk '{print $1}' | grep -qx "${ENV_NAME}"; then
-    warn "Environment '${ENV_NAME}' already exists — skipping creation."
+    # An environment left over from a previous version is on Python 3.10, and
+    # `xy` declares Requires-Python >= 3.11 — so reusing it silently would get
+    # as far as installing the renderer and fail there, several minutes in,
+    # with a message about a version nobody asked for. Checked here instead.
+    EXISTING="$(conda run -n "${ENV_NAME}" python -c \
+        'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")' 2>/dev/null || true)"
+    if [ -n "${EXISTING}" ] && [ "$(printf '%s\n' "${PY_VER}" "${EXISTING}" | sort -V | head -1)" != "${PY_VER}" ]; then
+        error "Environment '${ENV_NAME}' is on Python ${EXISTING}, and ${PY_VER} or newer is needed."
+        error "The figures are drawn by xy, which requires Python ${PY_VER}."
+        echo ""
+        echo "  Remove it and run this script again:"
+        echo "    conda env remove -n ${ENV_NAME}"
+        echo ""
+        exit 1
+    fi
+    warn "Environment '${ENV_NAME}' already exists (Python ${EXISTING:-unknown}) — skipping creation."
     warn "To rebuild from scratch:  conda env remove -n ${ENV_NAME}"
 else
     info "Creating environment '${ENV_NAME}' with Python ${PY_VER} ..."
@@ -131,7 +181,6 @@ else
         scanpy \
         pip \
         "scipy==1.13" \
-        pyside6 \
         pyyaml \
         ipykernel \
         ipywidgets \
@@ -143,8 +192,8 @@ fi
 
 conda activate "${ENV_NAME}"
 
-# ── Step 2: Install mosna-package ────────────────────────────
-step "Step 2/4 — mosna-package"
+# ── Step 2: Install the Python halves ────────────────────────
+step "Step 3/6 — mosna-package and the figure renderer"
 
 cd "${MOSNA_PACKAGE_DIR}"
 if ${DEV_MODE}; then
@@ -157,13 +206,20 @@ fi
 cd "${SCRIPT_DIR}"
 success "mosna-package installed."
 
+# The renderer, which is what turns each analysis's figure specifications
+# into a PNG and an interactive chart. Editable, so a change to a figure is
+# picked up without reinstalling.
+info "Installing the mosna_xy renderer ..."
+python -m pip install -e "${RENDERER_DIR}"
+success "mosna_xy installed."
+
 # ── Step 3: Verify key imports ────────────────────────────────
-step "Step 3/4 — Verifying imports"
+step "Step 4/6 — Verifying imports"
 
 python - <<'PYCHECK'
 import importlib.util, sys
 missing = []
-for mod in ["PySide6", "yaml", "pandas", "mosna"]:
+for mod in ["yaml", "pandas", "mosna", "tysserand", "mosna_xy", "xy"]:
     if importlib.util.find_spec(mod) is None:
         missing.append(mod)
 if missing:
@@ -173,19 +229,48 @@ print("[OK] All required modules are importable.")
 PYCHECK
 success "All Python dependencies satisfied."
 
-# ── Step 4: Desktop launcher ──────────────────────────────────
-step "Step 4/4 — Desktop launcher"
+# ── Step 4: Build the interface ───────────────────────────────
+step "Step 5/6 — Building the interface"
 
-# Always regenerate MosnaGUI.sh with current resolved paths
+if ${BUILD_RUST}; then
+    info "Compiling (the first build takes a few minutes) ..."
+    # From the project root, so the workspace is the one in this directory
+    # whatever the caller's working directory was.
+    ( cd "${SCRIPT_DIR}" && cargo build --release --locked )
+    if [ ! -x "${GUI_BINARY}" ]; then
+        error "The build finished but ${GUI_BINARY} is not there."
+        exit 1
+    fi
+    success "Interface built: ${GUI_BINARY}"
+else
+    info "Skipped (--no-rust)."
+    if [ ! -x "${GUI_BINARY}" ]; then
+        warn "No interface binary at ${GUI_BINARY} — the launcher will not start."
+    fi
+fi
+
+# ── Step 5: Desktop launcher ──────────────────────────────────
+step "Step 6/6 — Desktop launcher"
+
+# Always regenerate MosnaGUI.sh with current resolved paths.
+#
+# The launcher activates the conda environment *before* starting the
+# interface, which is what puts the analyses' interpreter first on PATH.
+# The interface starts `python -m package.<module>` as a sub-process, so it
+# is the interpreter the launcher leaves in front that runs them.
 cat > "${LAUNCHER_SH}" <<LAUNCHEOF
 #!/usr/bin/env bash
 # Auto-generated by setup.sh — do not edit manually
 set -e
-export QT_IMAGEIO_MAXALLOC=2048
 source "${CONDA_BASE}/etc/profile.d/conda.sh"
 conda activate "${ENV_NAME}"
+# Named explicitly rather than left to be discovered: an interface started
+# from a copied binary, or from a file manager, has no way of knowing which
+# checkout it belongs to.
+export MOSNA_GUI_ROOT="${SCRIPT_DIR}"
+export MOSNA_PYTHON="\$(command -v python)"
 cd "${SCRIPT_DIR}"
-python "${GUI_SCRIPT}"
+exec "${GUI_BINARY}" "\$@"
 LAUNCHEOF
 chmod +x "${LAUNCHER_SH}"
 success "Launcher created: ${LAUNCHER_SH}"
@@ -210,6 +295,7 @@ ${ICON_LINE}
 Terminal=false
 Categories=Science;Biology;Utility;
 StartupNotify=true
+StartupWMClass=mosna-gui
 DESKEOF
         chmod +x "${DESKTOP_FILE}"
 

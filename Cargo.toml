@@ -1,0 +1,46 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/mosna-paths",
+    "crates/mosna-config",
+    "crates/mosna-io",
+    "crates/mosna-gui",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+license = "MIT"
+authors = ["Owen GRIERE"]
+description = "MOSNA GUI — Rust interface driving the Python MOSNA/Tysserand pipeline"
+
+[workspace.dependencies]
+mosna-config = { path = "crates/mosna-config" }
+mosna-paths = { path = "crates/mosna-paths" }
+mosna-io = { path = "crates/mosna-io" }
+
+anyhow = "1"
+thiserror = "2"
+rayon = "1"
+serde = { version = "1", features = ["derive"] }
+# `preserve_order` keeps a YAML/JSON object in the order it was built rather
+# than sorting its keys, so `configuration.yaml` reads the way the Python GUI
+# wrote it.
+serde_json = { version = "1", features = ["preserve_order"] }
+serde_yaml = "0.9"
+indexmap = { version = "2", features = ["serde"] }
+regex = "1"
+proptest = "1"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.release-fast]
+inherits = "release"
+lto = "thin"
+codegen-units = 16

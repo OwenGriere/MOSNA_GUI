@@ -28,9 +28,7 @@ def main():
     emit_qt_info('[INFO] Parameters are read correctly')
 
     temp_folder = working_dir / "temp/net_dir_mosna"
-    saving_folder = working_dir / f"{analyse}_Network"
     temp_folder.mkdir(parents=True, exist_ok=True)
-    saving_folder.mkdir(parents=True, exist_ok=True)
 
     net_dir = Path(working_dir).expanduser().resolve() / Path(config['Nodes directory']).expanduser()
     net_dir_list = find_sample(net_dir, config['Extension'], config["Patient column name"], config["Sample column name"])
@@ -46,7 +44,10 @@ def main():
             c_map,
             config["Edges method"],
             config['Min neighbors'],
-            saving_folder,
+            # No figure: the interface draws this network itself, from the
+            # files written just below, at any zoom and with every attribute
+            # still readable at the pointer. A PNG of it is a worse copy.
+            None,
             temp_folder,
             config["Patient column name"],
             config["Sample column name"],

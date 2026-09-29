@@ -7,7 +7,7 @@ from package.core.NAS.plot_embedding import plot_embedding
 from package.utils.find_sample_from_file import find_sample_from_file
 from package.utils.find_sample import find_sample
 
-def aggregated_niches(method, net_dir, save_dir, temp_dir ,attributes_col, pheno_col, uniq_pheno, stat_funcs, stat_names, id_level_1, id_level_2,
+def aggregated_niches(method, net_dir, save_dir, temp_dir, working_dir, attributes_col, pheno_col, uniq_pheno, stat_funcs, stat_names, id_level_1, id_level_2,
                      reducer_type, clusterer_type, n_neighbors, metric, n_clusters, resolution, min_dist, dim_clust,
                      min_cluster_size, k_cluster, normalize, order=1):
 
@@ -76,7 +76,8 @@ def aggregated_niches(method, net_dir, save_dir, temp_dir ,attributes_col, pheno
     plot_embedding(clusterer_dir.parent / "embedding.npy", cluster_labels, save_dir, {"reducer_type" : reducer_type,
                                                                                       "metric" : metric,
                                                                                       "n_neighbors" : n_neighbors,
-                                                                                      "min_dist" : min_dist})
+                                                                                      "min_dist" : min_dist},
+                   working_dir)
     #cell_types = merge_niche_pheno(net_dir, pheno_col, cluster_labels)
 
     files = find_sample(net_dir, "parquet", id_level_1, id_level_2)
@@ -112,7 +113,7 @@ def aggregated_niches(method, net_dir, save_dir, temp_dir ,attributes_col, pheno
                     normalize=normalization
             )
 
-            mosna_figures(cluster_labels, counts, save_dir, norm=normalization)
+            mosna_figures(cluster_labels, counts, save_dir, working_dir, norm=normalization)
     else:
         counts = mosna.make_niches_composition(
                     var=cell_types,
@@ -120,5 +121,5 @@ def aggregated_niches(method, net_dir, save_dir, temp_dir ,attributes_col, pheno
                     var_label=pheno_col,
                     normalize=normalize
         )
-        mosna_figures(cluster_labels, counts, save_dir, norm=normalize)
+        mosna_figures(cluster_labels, counts, save_dir, working_dir, norm=normalize)
     emit_qt_progress(3,3, "[PROCESS] Niches Analysis")

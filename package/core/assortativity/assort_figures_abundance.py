@@ -1,53 +1,52 @@
-import matplotlib.pyplot as plt
+"""How much of each phenotype every sample holds.
+
+Stacked, because the question the figure answers is what a sample is *made of*
+— the bands have to add up to the whole for that to be readable at a glance.
+"""
+
 import numpy as np
-from ...utils.style_figures import apply_style
-apply_style()
 
-def assort_figures_abundance(net_stat, save_dir):
+from ...utils.colours import hex_of, colormap
+from ...utils.figure_queue import Spec, queue
 
+
+def _palette(n_colors):
+    """The `tab20` family, extended the way the matplotlib original extended it.
+
+    Twenty colours, then `tab20b` and `tab20c` as the cohort needs them, in the
+    same order — so a phenotype keeps the colour it had.
+    """
+    palettes = [colormap("tab20")(np.linspace(0, 1, 20))]
+    if n_colors > 20:
+        palettes.append(colormap("tab20b")(np.linspace(0, 1, 20)))
+    if n_colors > 40:
+        palettes.append(colormap("tab20c")(np.linspace(0, 1, 20)))
+
+    colours = np.vstack(palettes)[:n_colors]
+    return [hex_of(colour) for colour in colours]
+
+
+def assort_figures_abundance(net_stat, save_dir, working_dir):
     plot_df = net_stat.loc[:, net_stat.columns.str.startswith('% ')]
     plot_df = plot_df.div(plot_df.sum(axis=1), axis=0)
 
-    fig, ax = plt.subplots(figsize=(18, 9))
+    if plot_df.empty:
+        return
 
-    palettes = [plt.cm.tab20(np.linspace(0, 1, 20))]
-    
-    n_colors = plot_df.shape[1]
-    if n_colors > 20:
-        palettes.append(plt.cm.tab20b(np.linspace(0, 1, 20)))
-    if n_colors > 40:
-        palettes.append(plt.cm.tab20c(np.linspace(0, 1, 20)))
+    # One row per phenotype, one column per sample: the renderer stacks the
+    # rows, so the matrix is handed over in that orientation.
+    values = plot_df.to_numpy(dtype=float).T
+    # `% ` prefixes the column names; the legend wants the phenotype.
+    phenotypes = [str(column)[2:] for column in plot_df.columns]
+    samples = [str(index) for index in plot_df.index]
 
-    all_colors = np.vstack(palettes)
-    colors = all_colors[:n_colors]
-
-    plot_df.plot(
-        kind='bar',
-        stacked=True,
-        width=0.8,
-        ax=ax,
-        color=colors
+    spec = (
+        Spec("abundance", "abundance", save_dir)
+        .set_array("values", values)
+        .set("samples", samples)
+        .set("phenotypes", phenotypes)
+        .set("colours", _palette(len(phenotypes)))
+        .set("legend_title", "Cell type")
+        .set("title", "Relative abundance of cell types per sample")
     )
-
-    ax.set_xlabel('Sample', fontsize=20)
-    ax.set_ylabel('Proportion', fontsize=20)
-    ax.set_title('Abondance relative des types cellulaires par sample', fontsize=25)
-
-    handles, labels = ax.get_legend_handles_labels()
-    labels = [l[2:] for l in labels]
-    ax.legend(
-        handles[::-1],
-        labels[::-1],
-        title='Cell type',
-        bbox_to_anchor=(1.02, 1),
-        loc='upper left',
-        fontsize=8,
-        title_fontsize=12
-    )
-
-    plt.xticks(rotation=45, ha='right')
-    fig.subplots_adjust(left=0.08, right=0.78, bottom=0.18, top=0.90)
-    plt.savefig(save_dir / "abundance.png", dpi=300)
-    plt.close()
-
-    return
+    queue(spec, working_dir)

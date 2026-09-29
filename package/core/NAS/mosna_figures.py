@@ -1,31 +1,63 @@
-from mosna import mosna
-import matplotlib.pyplot as plt
-from ...utils.style_figures import apply_style
-apply_style()
+"""What each niche is made of, and how many nodes fell into each.
 
-def mosna_figures(niches, counts, save_dir, norm=None):
-    if norm is not None:
-        norm = '_' + norm
+Two figures per normalisation. The composition is a phenotype-by-niche matrix;
+the histogram counts the nodes. Neither is drawn here — both are handed to the
+renderer, which exports the PNG and the interactive chart from one description.
+"""
 
-    n_phenotypes = counts.shape[1] if hasattr(counts, 'shape') else len(counts.columns)
-    fig_height = max(8, n_phenotypes * 0.35)
+import numpy as np
 
-    plt.figure(figsize=(20, fig_height))
-    mosna.plot_niches_composition(counts=counts)
-    plt.title("Niches Aggregated Composition", fontsize=14, pad=15)
-
-    ax = plt.gca()
-    ax.set_yticklabels(ax.get_yticklabels(), fontsize=8)
-    ax.set_xticklabels(ax.get_xticklabels(), fontsize=10)
-
-    plt.tight_layout()
-    plt.savefig(save_dir / f"Niches_Aggregated_Composition{norm}.png", dpi=300, bbox_inches='tight')
-    plt.close()
+from ...utils.colours import cluster_palette, linear
+from ...utils.figure_queue import Spec, queue
 
 
-    plt.figure(figsize=(20, 8))
-    mosna.plot_niches_histogram(niches)
-    plt.title('Niches histogram')
-    plt.tight_layout()
-    plt.savefig(save_dir / "Niches_Histogram.png", dpi=300, bbox_inches='tight')
-    plt.close()
+def mosna_figures(niches, counts, save_dir, working_dir, norm=None):
+    suffix = f"_{norm}" if norm is not None else ""
+
+    _composition(counts, save_dir, working_dir, suffix, norm)
+    _histogram(niches, save_dir, working_dir)
+
+
+def _composition(counts, save_dir, working_dir, suffix, norm):
+    """The matrix, in the orientation `make_niches_composition` returns it:
+    one row per phenotype, one column per niche."""
+    values = counts.to_numpy(dtype=float)
+    if values.size == 0:
+        return
+
+    spec = (
+        Spec("niche_composition", f"Niches_Aggregated_Composition{suffix}", save_dir)
+        .set_array("z", values)
+        .set("y_labels", [str(index) for index in counts.index])
+        .set("x_labels", [str(column) for column in counts.columns])
+        # The Blues `plot_niches_composition` used. A sequential map, because a
+        # composition is a proportion with a floor at zero and no natural
+        # centre.
+        .set("colormap", linear("Blues"))
+        .set("domain", [float(np.nanmin(values)), float(np.nanmax(values))])
+        .set("colorbar_title", norm or "proportion")
+        .set("title", "Niches Aggregated Composition")
+    )
+    queue(spec, working_dir)
+
+
+def _histogram(niches, save_dir, working_dir):
+    """One bar per niche, in the niche's own colour.
+
+    The colour is the point: it is the same one the niche has in the embedding
+    and in the composition heatmap, so a tall bar here can be found again over
+    there.
+    """
+    identifiers, counts = np.unique(np.asarray(niches), return_counts=True)
+    if identifiers.size == 0:
+        return
+
+    categories = [str(identifier) for identifier in identifiers]
+    spec = (
+        Spec("histogram", "Niches_Histogram", save_dir)
+        .set("categories", categories)
+        .set_array("counts", counts.astype(float))
+        .set("colours", cluster_palette(identifiers))
+        .set("title", "Niches histogram")
+    )
+    queue(spec, working_dir)

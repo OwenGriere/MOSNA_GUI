@@ -10,6 +10,7 @@ from package.core.NAS.find_all_pheno import find_all_pheno
 from package.utils.convert_net_dir import convert_net_dir
 from package.core.NAS.assert_net_niches import assert_net_niches
 from package.utils.emit_qt_progress import emit_qt_info, emit_qt_progress
+from package.utils.figure_queue import render
 from package.utils.save_config import save_config
 from package.utils.verif_cpu import verif_cpu
 from package.core.tysserand.draw_per_sample import draw_per_sample
@@ -78,6 +79,22 @@ def resolve_stats(section):
 
 
 def main():
+    """Lance l'étape, et dessine ce qu'elle a décrit même si elle échoue.
+
+    Les figures sont mises en file et dessinées en une passe à la fin. Sans ce
+    `finally`, un échec survenant après que les niches ont été trouvées — le
+    redessin du réseau réclamant une colonne que l'agrégation n'écrit pas, par
+    exemple — jetterait toutes les figures que le calcul avait déjà décrites,
+    là où l'ancien code matplotlib les aurait laissées sur le disque.
+    """
+    _, working_dir = get_arguments()
+    try:
+        _analyse()
+    finally:
+        render(Path(working_dir))
+
+
+def _analyse():
 
     ############################## --- PRE-PROCESS --- ####################################
     analyse = "Niche Analysis"
@@ -147,6 +164,7 @@ def main():
             "net_dir": net_dir,
             "save_dir": save_dir,
             "temp_dir": net_dir,
+            "working_dir": working_dir,
             "attributes_col": config["Column to aggregate"],
             "pheno_col": config['Phenotype column'],
             "uniq_pheno": uniq_phenotype,
@@ -198,7 +216,8 @@ def main():
                 save_dir,'None',
                 kwargs['id_level_1'],kwargs['id_level_2'],
                 'parquet',
-                Path(node_file).parent / node_file.name.replace('nodes_', 'edges_', 1)
+                Path(node_file).parent / node_file.name.replace('nodes_', 'edges_', 1),
+                working_dir
                 ) for node_file in files]
             
             results = [None] * len(args_list)
@@ -248,6 +267,7 @@ def main():
                 "net_dir": net_dir,
                 "save_dir": save_dir_sample,
                 "data_info": sample,
+                "working_dir": working_dir,
                 "pheno_col": config["Column to aggregate"],
                 "uniq_phenotype": uniq_phenotype,
                 "stat_funcs": stat_funcs,
@@ -299,7 +319,8 @@ def main():
                     save_dir_sample_tysserand,'None',
                     kwargs['id_level_1'],kwargs['id_level_2'],
                     'parquet',
-                    edge_file]
+                    edge_file,
+                    working_dir]
                 draw_per_sample(*args_list)
             
             emit_qt_progress(i, len(data_info), "[PROCESS] Niches Analysis per sample")

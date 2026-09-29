@@ -4,7 +4,7 @@ from package.utils.emit_qt_progress import emit_qt_info, emit_qt_progress
 from package.core.NAS.merge_niche_pheno import merge_niche_pheno
 from package.core.NAS.mosna_figures import mosna_figures
 
-def niches_per_sample(method, net_dir, save_dir, data_info ,pheno_col, uniq_phenotype, stat_funcs, stat_names, id_level_1, id_level_2,
+def niches_per_sample(method, net_dir, save_dir, data_info, working_dir, pheno_col, uniq_phenotype, stat_funcs, stat_names, id_level_1, id_level_2,
                      reducer_type, clusterer_type, n_neighbors, metric, n_clusters, resolution, min_dist, dim_clust,
                      min_cluster_size, k_cluster, normalize, order=1):
 
@@ -57,7 +57,7 @@ def niches_per_sample(method, net_dir, save_dir, data_info ,pheno_col, uniq_phen
             )
             save_dir_norm = save_dir / f'{normalization}'
             save_dir_norm.mkdir(exist_ok=True, parents=True)
-            mosna_figures(cluster_labels, counts, save_dir_norm)
+            mosna_figures(cluster_labels, counts, save_dir_norm, working_dir)
     else:
         counts = mosna.make_niches_composition(
                     var=cell_types,
@@ -65,4 +65,4 @@ def niches_per_sample(method, net_dir, save_dir, data_info ,pheno_col, uniq_phen
                     var_label=pheno_col,
                     normalize=normalize
         )
-        mosna_figures(cluster_labels, counts, save_dir)
+        mosna_figures(cluster_labels, counts, save_dir, working_dir)

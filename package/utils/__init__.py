@@ -6,7 +6,7 @@ from .assert_params import assert_params
 from .find_sample_from_file import find_sample_from_file
 from .emit_qt_progress import emit_qt_progress, emit_qt_info
 from .save_config import save_config
-from .style_figures import apply_style
+from .figure_queue import Spec, queue, render
 
 __all__ = [
     "get_arguments",
@@ -19,5 +19,7 @@ __all__ = [
     "emit_qt_progress",
     "emit_qt_info",
     "save_config",
-    "apply_style"
+    "Spec",
+    "queue",
+    "render",
 ]

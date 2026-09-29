@@ -4,3 +4,10 @@ CONFIG/configuration.yaml
 
 __pycache__/
 *.pyc
+
+# Rust build output
+target/
+
+# Editable installs of the renderer
+python/build/
+python/*.egg-info/
