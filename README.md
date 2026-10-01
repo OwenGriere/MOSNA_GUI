@@ -46,7 +46,11 @@ through to ask a licensing question and leaves the environment incomplete.
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh   # once
-git clone <repo-url> MOSNA_GUI
+```
+
+Clone this repository
+
+```bash
 cd MOSNA_GUI
 bash setup.sh
 ```
@@ -281,19 +285,6 @@ python -m package.niche_analysis \
     --file CONFIG/configuration.yaml \
     --working_dir /path/to/output/
 ```
-
----
-
-## Configuration reference
-
-Copy [`CONFIG/configuration.yaml.example`](CONFIG/configuration.yaml.example)
-to `CONFIG/configuration.yaml` and fill in your paths. The
-`configuration.yaml` file is git-ignored (it contains absolute paths specific
-to your machine).
-
-The interface reads and writes that file byte for byte the way PyYAML wrote it,
-so a configuration is interchangeable between the interface and the command
-line.
 
 ---
 
