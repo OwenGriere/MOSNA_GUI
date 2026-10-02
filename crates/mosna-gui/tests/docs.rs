@@ -198,7 +198,7 @@ fn the_manual_explains_how_to_install() {
 
     assert!(all.contains("setup.sh"), "Linux is not covered:\n{all}");
     assert!(
-        all.contains("setup_windows.bat"),
+        all.contains("INSTALLATION.exe"),
         "Windows is not covered:\n{all}"
     );
     assert!(

@@ -323,6 +323,15 @@ else
     info "Desktop shortcut skipped (--no-shortcut)."
 fi
 
+# Once installed, the Windows installer and uninstaller are of no use in this
+# folder. INSTALLATION.exe does the same the other way round.
+for name in INSTALLATION.exe UNINSTALL.exe; do
+    if [ -f "${SCRIPT_DIR}/${name}" ]; then
+        rm -f "${SCRIPT_DIR}/${name}"
+        info "removed ${name} (Windows only)"
+    fi
+done
+
 # ── Done ──────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}${BOLD}"

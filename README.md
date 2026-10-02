@@ -72,11 +72,41 @@ The script will:
 
 ### Windows
 
-> **Requirement:** the [Rust toolchain](https://rustup.rs). Miniconda is
-> downloaded automatically if absent.
+> **Requirements:** none — what is missing is installed.
 
-1. Download or clone this repository
-2. Double-click `setup_windows.bat`
+1. Download the repository (**Code → Download ZIP**), then right-click the ZIP
+   → **Extract all**. `INSTALLATION.exe` does not work from inside the ZIP.
+2. Open the extracted folder and double-click **`INSTALLATION.exe`**.
+3. Choose where to put the folder and whether you want a desktop shortcut,
+   then **Installer**.
+
+The window then installs, each only if it is missing: the Microsoft C++ build
+tools (Rust links with them; Windows asks for administrator rights for this
+step only), Rust, and Miniconda into `%USERPROFILE%\miniconda3`. It builds the
+same `mosna-GUI` environment as `setup.sh` — Python 3.11 and the scientific
+stack from conda-forge, `mosna-package` and the `mosna_xy` renderer — compiles
+the interface, and writes `MosnaGUI.bat` with a shortcut to it in the Start
+Menu and, if asked for, on the desktop. The first install takes 30 to 60
+minutes. It cannot be closed while it runs; everything it prints is kept in
+`%TEMP%\mosna-gui-install.log`.
+
+**To update**, run the new version's `INSTALLATION.exe` and choose the folder
+MOSNA GUI is already in: your configuration and results are kept.
+
+**To uninstall**, double-click **`UNINSTALL.exe`** in the folder. It removes
+the shortcuts, `MosnaGUI.bat`, the `mosna-GUI` environment and the build
+(`target\`), and offers to remove:
+
+* **Miniconda, Rust and the C++ build tools**, each one found on the machine.
+  Those `INSTALLATION.exe` installed itself (it notes them in
+  `.mosna-prerequisites`) are ticked; the others are not, since other software
+  may use them.
+* **the folder itself**, unticked: it holds your configuration and whatever
+  results you put there.
+
+Each installer deletes the other platform's files once it has installed:
+`INSTALLATION.exe` removes `setup.sh`, and `setup.sh` removes
+`INSTALLATION.exe` and `UNINSTALL.exe`.
 
 ---
 
@@ -85,7 +115,7 @@ The script will:
 | Platform | Command |
 |---|---|
 | Linux / macOS | `bash MosnaGUI.sh` or double-click the Desktop shortcut |
-| Windows | Double-click `MosnaGUI.bat` or the Desktop shortcut |
+| Windows | The **MOSNA GUI** shortcut, in the Start Menu or on the desktop (it runs `MosnaGUI.bat`) |
 
 The launcher activates the conda environment before starting the interface,
 which is what puts the analyses' interpreter first on `PATH`. Two environment
@@ -111,7 +141,9 @@ variables override what the interface finds on its own:
 | xy | 0.0.6 (pinned: it is alpha, and a patch release changes what the figures look like) |
 | mosna | from `mosna-package/` |
 
-Full list: [`requirements.txt`](requirements.txt)
+The full list is what the installers build: the conda packages in `setup.sh`
+(and `crates/mosna-setup/src/conda.rs` on Windows), then `mosna-package/` and
+the renderer in `python/`, whose `pyproject.toml` pins `xy`.
 
 ---
 
@@ -126,7 +158,8 @@ MOSNA_GUI/
 │   ├── mosna-gui/             ← the interface: panels, viewer, manual, theme
 │   ├── mosna-config/          ← configuration.yaml, read and written byte for byte
 │   ├── mosna-io/              ← parquet / csv / tsv, and finding samples on disk
-│   └── mosna-paths/           ← where the config, the sources and Python live
+│   ├── mosna-paths/           ← where the config, the sources and Python live
+│   └── mosna-setup/           ← INSTALLATION.exe and UNINSTALL.exe
 ├── package/
 │   ├── tysserand_network.py   ← Step 1 runner
 │   ├── assortativity.py       ← Step 2 runner
@@ -139,7 +172,8 @@ MOSNA_GUI/
 │   └── configuration.yaml.example   ← config template
 ├── mosna-package/         ← MOSNA Python package (unchanged)
 ├── setup.sh               ← Linux/macOS installer
-└── setup_windows.bat      ← Windows installer
+├── INSTALLATION.exe       ← Windows installer (built from crates/mosna-setup)
+└── UNINSTALL.exe          ← Windows uninstaller
 ```
 
 ### Workflow
@@ -295,6 +329,16 @@ cargo test --workspace       # the interface, its model and its manual
 cargo build --release        # what setup.sh runs
 cargo fmt --all              # formatting
 cargo clippy --workspace     # lints
+```
+
+`INSTALLATION.exe` and `UNINSTALL.exe` are committed, since installing must
+not need a compiler. After changing `crates/mosna-setup`, rebuild them from
+Linux (zig from `pip install ziglang`):
+
+```bash
+cargo zigbuild --release -p mosna-setup --target x86_64-pc-windows-gnu
+cp target/x86_64-pc-windows-gnu/release/mosna-setup.exe INSTALLATION.exe
+cp target/x86_64-pc-windows-gnu/release/mosna-uninstall.exe UNINSTALL.exe
 ```
 
 The interface is split so that everything except the drawing is testable:

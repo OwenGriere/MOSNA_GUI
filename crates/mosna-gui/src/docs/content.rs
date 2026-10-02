@@ -159,34 +159,34 @@ fn installation() -> Chapter {
                 title: T::new("Installing on Windows", "Installer sous Windows"),
                 blocks: vec![
                     Block::Paragraph(T::new(
-                        "Install the Rust toolchain from rustup.rs, then double-click \
-                         setup_windows.bat. It downloads Miniconda if the machine has none, \
-                         builds the same environment, compiles the interface and creates a \
-                         shortcut.",
-                        "Installez la chaîne d'outils Rust depuis rustup.rs, puis \
-                         double-cliquez sur setup_windows.bat. Il télécharge Miniconda si la \
-                         machine n'en a pas, construit le même environnement, compile \
-                         l'interface et crée un raccourci.",
+                        "Double-click INSTALLATION.exe in the MOSNA GUI folder. A window asks \
+                         where to put the folder and whether to add a desktop shortcut, then \
+                         installs whatever is missing — the Microsoft C++ build tools, Rust, \
+                         Miniconda — builds the same mosna-GUI conda environment as setup.sh, \
+                         compiles the interface and creates its shortcuts, in the Start Menu \
+                         and, if asked for, on the desktop.",
+                        "Double-cliquez sur INSTALLATION.exe dans le dossier de MOSNA GUI. Une \
+                         fenêtre demande où placer le dossier et s'il faut un raccourci sur le \
+                         bureau, puis installe ce qui manque — outils C++ de Microsoft, Rust, \
+                         Miniconda —, construit le même environnement conda mosna-GUI que \
+                         setup.sh, compile l'interface et crée ses raccourcis, dans le menu \
+                         Démarrer et, si vous l'avez demandé, sur le bureau.",
                     )),
                     Block::Code {
-                        caption: T::new("Install", "Installer"),
-                        lines: vec!["setup_windows.bat"],
+                        caption: T::new("Install, then remove", "Installer, puis désinstaller"),
+                        lines: vec!["INSTALLATION.exe", "UNINSTALL.exe"],
                     },
-                    Block::Callout {
-                        kind: CalloutKind::Warning,
-                        text: T::new(
-                            "Windows is not the platform this has been exercised on. If the \
-                             build fails, `cargo build --release` in the project directory \
-                             says why, and the interface can be started from \
-                             target\\release\\mosna-gui.exe with the mosna-GUI environment \
-                             active.",
-                            "Windows n'est pas la plateforme sur laquelle ceci a été éprouvé. \
-                             Si la construction échoue, `cargo build --release` dans le \
-                             dossier du projet dit pourquoi, et l'interface se lance depuis \
-                             target\\release\\mosna-gui.exe avec l'environnement mosna-GUI \
-                             actif.",
-                        ),
-                    },
+                    Block::Paragraph(T::new(
+                        "UNINSTALL.exe, in the same folder, removes the shortcuts, the \
+                         launcher, the mosna-GUI environment and the build and, if you tick \
+                         them, the tools the installation added and the folder itself. Its \
+                         log, like the installer's, is kept in %TEMP%.",
+                        "UNINSTALL.exe, dans le même dossier, supprime les raccourcis, le \
+                         lanceur, l'environnement mosna-GUI et la compilation et, si vous les \
+                         cochez, les outils que l'installation a ajoutés et le dossier \
+                         lui-même. Son journal, comme celui de l'installation, est gardé dans \
+                         %TEMP%.",
+                    )),
                 ],
             },
             Section {

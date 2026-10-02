@@ -1,4 +1,8 @@
 MosnaGUI.sh
+# Written by INSTALLATION.exe
+MosnaGUI.bat
+MosnaGUI.ico
+.mosna-prerequisites
 test/generate_net.py
 CONFIG/configuration.yaml
 
@@ -8,6 +12,7 @@ __pycache__/
 # Rust build output
 target/
 
-# Editable installs of the renderer
+# Build output of the Python packages
 python/build/
 python/*.egg-info/
+mosna-package/build/
