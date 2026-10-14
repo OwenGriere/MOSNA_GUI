@@ -1,36 +1,60 @@
-<h1 align="center">A graphical interface for <a href="https://github.com/PancaldiLab/MOSNA">MOSNA</a> and <a href="https://github.com/PancaldiLab/tysserand">Tysserand</a> — spatial network construction and analysis tools developed by <b>PancaldiLAB</b></h1>
-
----
-
-The interface is a Rust program. The analyses are not: Tysserand builds the
-networks and MOSNA computes the assortativity and the niches, in Python,
-unchanged — the interface starts them as sub-processes, so they can still be
-run from a terminal without it. What the analyses no longer do is *draw*: each
-one describes its figures, and the `mosna_xy` renderer turns every description
-into a PNG and an interactive chart from the same data.
+<h1 align="center">MOSNA GUI — a graphical interface for MOSNA and Tysserand</h1>
 
 ---
 
 ## Table of contents
 
+- [Architecture](#architecture)
 - [Quick start](#quick-start)
   - [Linux / macOS](#linux--macos)
   - [Windows](#windows)
 - [Launching the app](#launching-the-app)
 - [Requirements](#requirements)
-- [Tool overview](#tool-overview)
-  - [Architecture](#architecture)
+- [Using the tool](#using-the-tool)
   - [Workflow](#workflow)
   - [Input data format](#input-data-format)
   - [Step 0 — Project setup](#step-0--project-setup)
   - [Step 1 — Tysserand spatial networks](#step-1--tysserand-spatial-networks)
   - [Step 2 — Assortativity](#step-2--assortativity)
-  - [Step 3 — Niche Analysis](#step-3--niche-analysis)
+  - [Step 3 — Niche Analysis](#step-3--niche-analysis-nas)
 - [Figures](#figures)
 - [CLI usage](#cli-usage)
-- [Configuration reference](#configuration-reference)
-- [MCP server](#mcp-server--checking-inputs-and-comparing-the-two-implementations)
-- [Developing](#developing)
+- [Benchmark](#benchmark)
+
+---
+
+## Architecture
+
+MOSNA GUI is a Rust interface over two Python tools from PancaldiLAB, which it
+runs unchanged:
+
+| Step | Done by | Started from |
+|---|---|---|
+| 1 — spatial networks | [Tysserand](https://github.com/PancaldiLab/tysserand) | `package/tysserand_network.py` |
+| 2 — assortativity | [MOSNA](https://github.com/PancaldiLab/MOSNA) | `package/assortativity.py` |
+| 3 — niche analysis | MOSNA | `package/niche_analysis.py` |
+
+The interface (`crates/mosna-gui`) edits the configuration and starts each step
+as a Python sub-process, so every step can also be run from a terminal without
+it. MOSNA itself ships in `mosna-package/`; Tysserand is installed with it. The
+analyses no longer draw their figures: each one describes them, and the
+`mosna_xy` renderer in `python/` turns every description into a PNG and an
+interactive chart.
+
+```
+MOSNA_GUI/
+├── crates/
+│   ├── mosna-gui/       ← the interface: panels, viewer, manual
+│   ├── mosna-config/    ← configuration.yaml, read and written byte for byte
+│   ├── mosna-io/        ← parquet / csv / tsv, and finding samples on disk
+│   ├── mosna-paths/     ← where the config, the sources and Python live
+│   └── mosna-setup/     ← INSTALLATION.exe and UNINSTALL.exe
+├── package/             ← the step runners, calling Tysserand and MOSNA
+├── mosna-package/       ← MOSNA Python package (unchanged)
+├── python/mosna_xy/     ← the figure renderer
+├── CONFIG/              ← configuration template
+└── setup.sh             ← Linux/macOS installer
+```
 
 ---
 
@@ -49,9 +73,8 @@ through to ask a licensing question and leaves the environment incomplete.
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh   # once
 ```
 
-Clone this repository
-
 ```bash
+git clone https://github.com/OwenGriere/MOSNA_GUI.git
 cd MOSNA_GUI
 bash setup.sh
 ```
@@ -119,7 +142,7 @@ Each installer deletes the other platform's files once it has installed:
 | Windows | The **MOSNA GUI** shortcut, in the Start Menu or on the desktop (it runs `MosnaGUI.bat`) |
 
 The launcher activates the conda environment before starting the interface,
-which is what puts the analyses' interpreter first on `PATH`. Two environment
+which is what puts the analyses' interpreter first on `PATH`. Three environment
 variables override what the interface finds on its own:
 
 | Variable | Effect |
@@ -148,34 +171,7 @@ the renderer in `python/`, whose `pyproject.toml` pins `xy`.
 
 ---
 
-## Tool overview
-
-### Architecture
-
-```
-MOSNA_GUI/
-├── Cargo.toml             ← the Rust workspace
-├── crates/
-│   ├── mosna-gui/             ← the interface: panels, viewer, manual, theme
-│   ├── mosna-config/          ← configuration.yaml, read and written byte for byte
-│   ├── mosna-io/              ← parquet / csv / tsv, and finding samples on disk
-│   ├── mosna-paths/           ← where the config, the sources and Python live
-│   └── mosna-setup/           ← INSTALLATION.exe and UNINSTALL.exe
-├── package/
-│   ├── tysserand_network.py   ← Step 1 runner
-│   ├── assortativity.py       ← Step 2 runner
-│   ├── niche_analysis.py      ← Step 3 runner
-│   ├── core/                  ← analysis cores, and the figures they describe
-│   └── utils/                 ← shared utilities, the figure queue, the colours
-├── python/
-│   └── mosna_xy/          ← the renderer: one builder per kind of figure
-├── CONFIG/
-│   └── configuration.yaml.example   ← config template
-├── mosna-package/         ← MOSNA Python package (unchanged)
-├── setup.sh               ← Linux/macOS installer
-├── INSTALLATION.exe       ← Windows installer (built from crates/mosna-setup)
-└── UNINSTALL.exe          ← Windows uninstaller
-```
+## Using the tool
 
 ### Workflow
 
@@ -321,139 +317,8 @@ python -m package.niche_analysis \
     --working_dir /path/to/output/
 ```
 
-## MCP server — checking inputs and comparing the two implementations
-
-### Why
-
-MOSNA exists twice: MOSNA_GUI (Python) and MOSNA_Enhanced (Rust). They read the
-same `configuration.yaml` and the same `nodes_…` files, and run the same three
-steps. `mosna-mcp` is a [Model Context Protocol](https://modelcontextprotocol.io)
-server that gives an assistant such as Claude access to both. It is useful for
-three things:
-
-- **Catching bad inputs before a run.** The pipelines only check that the
-  configured columns exist. The server also finds the problems that make a run
-  fail late or give a wrong result without any error:
-  - files skipped silently because of their name;
-  - coordinates that are text, missing or all on one line;
-  - duplicate cell positions;
-  - phenotypes stored as `3` in one file and `3.0` in another;
-  - a configuration field left empty.
-
-  Each problem is reported with the implementation it affects (Rust, Python or
-  both).
-- **Running a step in either implementation**, from a conversation. Changed
-  parameters go into a copy of the configuration, never into yours.
-- **Checking that both implementations agree.** It compares networks edge by
-  edge, assortativity tables with a tolerance that accounts for random
-  permutations, and niche partitions with ARI/AMI. Each comparison explains how
-  to read its result.
-
-The same server ships in both repositories, so it is available whichever one
-you downloaded. With only one repository, the checks and comparisons still all
-work; `run_step` works for the implementation that is present.
-
-### Connecting it to Claude
-
-Build it once, from the root of the repository:
-
-```bash
-cargo build --release -p mosna-mcp
-```
-
-**Claude Code** — register it with one command (from the same folder):
-
-```bash
-claude mcp add mosna -- "$PWD/target/release/mosna-mcp"
-```
-
-Add `-s project` to share it with everyone who opens this folder. Claude Code
-then writes the entry to a `.mcp.json` file at the root. Type `/mcp` in Claude
-Code to check that `mosna` is connected.
-
-**Claude Desktop** — open *Settings → Developer → Edit Config* and add the
-server to `claude_desktop_config.json`, then restart Claude Desktop:
-
-```json
-{
-  "mcpServers": {
-    "mosna": {
-      "command": "/absolute/path/to/target/release/mosna-mcp",
-      "env": {
-        "MOSNA_GUI_PYTHON": "/home/me/miniconda3/envs/mosna-GUI/bin/python"
-      }
-    }
-  }
-}
-```
-
-On Windows the command is `…\target\release\mosna-mcp.exe` (with `\\` inside
-the JSON).
-
-**Finding the two implementations.** When the two repositories sit side by side
-(`…/MOSNA_Enhanced` and `…/MOSNA_GUI`), the server finds both by itself. To
-check what it found, ask Claude to call the `backends` tool. These variables
-override what the server finds on its own:
-
-| Variable | Points at |
-|---|---|
-| `MOSNA_BIN` | the `mosna` binary of MOSNA_Enhanced |
-| `MOSNA_GUI_DIR` | the MOSNA_GUI folder (the one holding `package/`) |
-| `MOSNA_GUI_PYTHON` | the Python of MOSNA_GUI's environment, e.g. the `mosna-GUI` conda env |
-| `MOSNA_MCP_PROTECTED` | folders no run may write into, separated like `PATH` |
-
-With Claude Code, pass them on the command line:
-`claude mcp add mosna --env MOSNA_GUI_PYTHON=… -- …/mosna-mcp`.
-
-### Using it
-
-You talk to Claude normally; it picks the tools. For example:
-
-> Check my configuration and the nodes files in `/data/cohort` before I run anything.
-
-> Run step 1 with Rust and with Python into `/tmp/run_rust` and `/tmp/run_py`, then compare the networks.
-
-> Compare the assortativity of these two runs; they used 500 permutations.
-
-> Why did the niche analysis fail?
-
-| Tool | What it does |
-|---|---|
-| `check_config` | validates `configuration.yaml`, section by section, for both implementations |
-| `check_nodes` | checks that the nodes files can become networks (naming, coordinates, cell count, phenotypes) |
-| `check_network` | checks the `nodes_*` / `edges_*` pairs that steps 2 and 3 read |
-| `run_step` | runs a step with `rust` or `python`, in the background, after checking its inputs |
-| `job_status`, `cancel_job` | progress, the end of the log, and why a step failed |
-| `compare_networks` | edge Jaccard between two runs; on the same inputs, exactly 1 is expected |
-| `compare_assortativity` | compares two `net_stat.csv`: counts must be equal, permutation statistics only within random error |
-| `compare_partitions` | ARI and AMI between two niche partitions; Python's niche step is unseeded, so even two Python runs agree only partly |
-| `backends` | which implementations were found, and how to point at a missing one |
-
 ---
 
-## Developing
+## Benchmark
 
-```bash
-cargo test --workspace       # the interface, its model and its manual
-cargo build --release        # what setup.sh runs
-cargo fmt --all              # formatting
-cargo clippy --workspace     # lints
-```
-
-`INSTALLATION.exe` and `UNINSTALL.exe` are committed, since installing must
-not need a compiler. After changing `crates/mosna-setup`, rebuild them from
-Linux (zig from `pip install ziglang`):
-
-```bash
-cargo zigbuild --release -p mosna-setup --target x86_64-pc-windows-gnu
-cp target/x86_64-pc-windows-gnu/release/mosna-setup.exe INSTALLATION.exe
-cp target/x86_64-pc-windows-gnu/release/mosna-uninstall.exe UNINSTALL.exe
-```
-
-The interface is split so that everything except the drawing is testable:
-`model/` holds the logic — which widget a key gets, how its value reads back,
-how a log line is classified, which figures belong to which patient — `panels/`
-draws it, and `docs/` is the manual, as data the interface renders itself. The
-manual is checked against the code: a parameter the interface offers and the
-manual does not explain fails the test suite, and so does a dependency added
-without being credited.
+*To come.*
