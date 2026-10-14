@@ -523,14 +523,32 @@ fn workflow() -> Chapter {
                          rien : il sert à traiter un répertoire que les étapes ont déjà \
                          rempli.",
                     )),
-                    Block::List(vec![T::new(
-                        "Clear temporary data — deletes the temp folder and the \
+                    Block::List(vec![
+                        T::new(
+                            "Plot all figures — draws every figure that the analyses run with \
+                             « Without plotting figures » ticked (the box at the top of the \
+                             Tysserand, Assortativity and Niche Analysis panels) set aside, \
+                             from the first run on. Nothing is computed again: those runs \
+                             wrote their tables and every other file as usual, and kept a \
+                             full description of each figure. Clearing the temporary data \
+                             does not remove those descriptions.",
+                            "Plot all figures — dessine toutes les figures mises de côté par \
+                             les analyses lancées avec « Without plotting figures » coché (la \
+                             case en haut des panneaux Tysserand, Assortativity et Niche \
+                             Analysis), depuis la première. Rien n'est recalculé : ces analyses \
+                             ont écrit leurs tableaux et tous leurs autres fichiers comme \
+                             d'habitude, et gardé une description complète de chaque figure. \
+                             Vider les données temporaires ne supprime pas ces descriptions.",
+                        ),
+                        T::new(
+                            "Clear temporary data — deletes the temp folder and the \
                              intermediate networks in it. The figures and the tables are \
                              kept.",
-                        "Clear temporary data — supprime le dossier temp et les réseaux \
+                            "Clear temporary data — supprime le dossier temp et les réseaux \
                              intermédiaires qu'il contient. Les figures et les tableaux sont \
                              conservés.",
-                    )]),
+                        ),
+                    ]),
                     Block::Callout {
                         kind: CalloutKind::Tip,
                         text: T::new(

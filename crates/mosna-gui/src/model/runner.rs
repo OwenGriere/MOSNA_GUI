@@ -8,23 +8,25 @@ use std::path::Path;
 
 /// The buttons of the action bar.
 ///
-/// Three analyses, and one thing to do with the directory they filled: take
-/// the intermediates back out of it.
+/// Three analyses, and two things to do with the directory they filled: draw
+/// the figures its runs set aside, or take the intermediates back out of it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Step {
     Tysserand,
     Assortativity,
     NicheAnalysis,
+    PlotFigures,
     ClearTemporary,
 }
 
 impl Step {
     /// Every step, in the order the buttons appear.
-    pub fn all() -> [Step; 4] {
+    pub fn all() -> [Step; 5] {
         [
             Step::Tysserand,
             Step::Assortativity,
             Step::NicheAnalysis,
+            Step::PlotFigures,
             Step::ClearTemporary,
         ]
     }
@@ -32,9 +34,10 @@ impl Step {
     /// The action bar, row by row.
     ///
     /// An analysis takes the full width: it is the thing the user came to do,
-    /// and its caption is long. Clearing has a row of its own under them,
-    /// separated by the space the panel leaves between rows, so the
-    /// destructive button is not one of a stack that all start work.
+    /// and its caption is long. Drawing the figures set aside and clearing
+    /// share the row under them: neither computes anything, both operate on a
+    /// directory that is already full, and the destructive button sits beside
+    /// a harmless one rather than in a stack that all start work.
     ///
     /// Written here rather than in the panel so the arrangement can be stated
     /// as a test instead of discovered by looking.
@@ -43,7 +46,7 @@ impl Step {
             vec![Step::Tysserand],
             vec![Step::Assortativity],
             vec![Step::NicheAnalysis],
-            vec![Step::ClearTemporary],
+            vec![Step::PlotFigures, Step::ClearTemporary],
         ]
     }
 
@@ -53,6 +56,7 @@ impl Step {
             Step::Tysserand => "Step 1 — Tysserand",
             Step::Assortativity => "Step 2 — Assortativity",
             Step::NicheAnalysis => "Step 3 — Niche Analysis",
+            Step::PlotFigures => "Plot all figures",
             Step::ClearTemporary => "Clear temporary data",
         }
     }
@@ -66,6 +70,10 @@ impl Step {
             Step::Tysserand => "Reconstruct a spatial network for every sample.",
             Step::Assortativity => "Measure which cell types sit next to which.",
             Step::NicheAnalysis => "Group neighbourhoods into spatial niches.",
+            Step::PlotFigures => {
+                "Draw every figure the analyses run \"without plotting figures\" set \
+                 aside, from the start. Nothing is computed again."
+            }
             Step::ClearTemporary => {
                 "Delete the temp folder and the intermediate networks in it.  \
                  The figures and the tables are kept."
@@ -79,6 +87,7 @@ impl Step {
             Step::Tysserand => "package.tysserand_network",
             Step::Assortativity => "package.assortativity",
             Step::NicheAnalysis => "package.niche_analysis",
+            Step::PlotFigures => "package.render_figures",
             Step::ClearTemporary => "package.clear_temporary",
         }
     }
@@ -89,7 +98,20 @@ impl Step {
     /// `--working_dir`, and passing a flag it does not know would make the
     /// button fail with a usage message.
     pub fn takes_config(self) -> bool {
-        !matches!(self, Step::ClearTemporary)
+        !matches!(self, Step::ClearTemporary | Step::PlotFigures)
+    }
+
+    /// The analysis a section of the Parameters panel configures, if any.
+    ///
+    /// Those three are the ones whose panel offers to run without drawing
+    /// figures.
+    pub fn for_section(name: &str) -> Option<Step> {
+        match name {
+            "Tysserand" => Some(Step::Tysserand),
+            "Assortativity" => Some(Step::Assortativity),
+            "Niche Analysis" => Some(Step::NicheAnalysis),
+            _ => None,
+        }
     }
 
     /// The full argument list for the interpreter, flags included.
@@ -101,6 +123,45 @@ impl Step {
         }
         arguments.push("--working_dir".to_string());
         arguments.push(working_dir.to_string_lossy().into_owned());
+        arguments
+    }
+}
+
+/// Which analyses run *without plotting figures*.
+///
+/// One box per analysis, at the top of its panel. Ticked, the analysis writes
+/// its tables and every other file as usual, and sets its figures aside instead
+/// of drawing them; [`Step::PlotFigures`] draws them afterwards.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct WithoutFigures {
+    pub tysserand: bool,
+    pub assortativity: bool,
+    pub niche_analysis: bool,
+}
+
+impl WithoutFigures {
+    /// The box of `step`, for an analysis; `None` for anything else.
+    pub fn get_mut(&mut self, step: Step) -> Option<&mut bool> {
+        match step {
+            Step::Tysserand => Some(&mut self.tysserand),
+            Step::Assortativity => Some(&mut self.assortativity),
+            Step::NicheAnalysis => Some(&mut self.niche_analysis),
+            _ => None,
+        }
+    }
+
+    /// Whether `step` is to run without drawing.
+    pub fn skips(mut self, step: Step) -> bool {
+        self.get_mut(step).is_some_and(|ticked| *ticked)
+    }
+
+    /// The arguments `step` is started with, `--no-figures` included when its
+    /// box is ticked.
+    pub fn arguments(self, step: Step, config_path: &Path, working_dir: &Path) -> Vec<String> {
+        let mut arguments = step.arguments(config_path, working_dir);
+        if self.skips(step) {
+            arguments.push("--no-figures".to_string());
+        }
         arguments
     }
 }
@@ -259,17 +320,69 @@ mod tests {
         );
     }
 
-    /// The action bar: the three analyses each on their own line, and the one
-    /// operation on a finished directory under them.
+    /// The action bar: the three analyses each on their own line, and the two
+    /// operations on a finished directory sharing the last one.
     #[test]
-    fn the_last_row_holds_the_operation_on_a_finished_directory() {
+    fn the_last_row_holds_the_operations_on_a_finished_directory() {
         let rows = Step::rows();
 
         assert_eq!(rows.len(), 4, "the bar is not four rows: {rows:?}");
-        for row in &rows {
-            assert_eq!(row.len(), 1, "a button shares its row");
+        for row in &rows[..3] {
+            assert_eq!(row.len(), 1, "an analysis shares its row");
         }
-        assert_eq!(rows[3], vec![Step::ClearTemporary]);
+        assert_eq!(
+            rows[3],
+            vec![Step::PlotFigures, Step::ClearTemporary],
+            "plotting is not on the left of the clear"
+        );
+    }
+
+    /// Drawing what was set aside acts on a directory, like clearing.
+    #[test]
+    fn plotting_all_figures_takes_no_configuration() {
+        let arguments = Step::PlotFigures.arguments(Path::new("/cfg.yaml"), Path::new("/work"));
+        assert_eq!(
+            arguments,
+            vec!["-m", "package.render_figures", "--working_dir", "/work"]
+        );
+    }
+
+    /// A ticked box adds the flag to its own analysis, and to nothing else.
+    #[test]
+    fn a_ticked_box_runs_its_analysis_without_figures() {
+        let (config, work) = (Path::new("/cfg.yaml"), Path::new("/work"));
+        let mut boxes = WithoutFigures::default();
+        for step in Step::all() {
+            assert!(!boxes
+                .arguments(step, config, work)
+                .contains(&"--no-figures".to_string()));
+        }
+
+        *boxes.get_mut(Step::NicheAnalysis).unwrap() = true;
+        for step in Step::all() {
+            let flagged = boxes
+                .arguments(step, config, work)
+                .contains(&"--no-figures".to_string());
+            assert_eq!(flagged, step == Step::NicheAnalysis, "{step:?}");
+        }
+    }
+
+    /// One box per analysis panel, and none on the others.
+    #[test]
+    fn each_analysis_panel_has_its_box() {
+        assert_eq!(Step::for_section("Tysserand"), Some(Step::Tysserand));
+        assert_eq!(
+            Step::for_section("Assortativity"),
+            Some(Step::Assortativity)
+        );
+        assert_eq!(
+            Step::for_section("Niche Analysis"),
+            Some(Step::NicheAnalysis)
+        );
+        assert_eq!(Step::for_section("General"), None);
+        for step in [Step::PlotFigures, Step::ClearTemporary] {
+            assert!(WithoutFigures::default().get_mut(step).is_none());
+        }
     }
 
     /// Every step is reachable, and none is offered twice — the rows are the

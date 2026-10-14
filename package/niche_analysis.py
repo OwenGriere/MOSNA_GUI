@@ -10,7 +10,7 @@ from package.core.NAS.find_all_pheno import find_all_pheno
 from package.utils.convert_net_dir import convert_net_dir
 from package.core.NAS.assert_net_niches import assert_net_niches
 from package.utils.emit_qt_progress import emit_qt_info, emit_qt_progress
-from package.utils.figure_queue import render
+from package.utils.figure_queue import finish
 from package.utils.save_config import save_config
 from package.utils.verif_cpu import verif_cpu
 from package.core.tysserand.draw_per_sample import draw_per_sample
@@ -91,7 +91,8 @@ def main():
     try:
         _analyse()
     finally:
-        render(Path(working_dir))
+        # Drawn now, or set aside when the step runs without figures.
+        finish(Path(working_dir))
 
 
 def _analyse():

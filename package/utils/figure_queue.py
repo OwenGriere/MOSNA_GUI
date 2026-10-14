@@ -34,6 +34,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -44,6 +45,15 @@ import numpy as np
 #: figures: a queue showing up in the gallery as a folder of nothing would be a
 #: bug report.
 QUEUE_DIRECTORY = ".mosna-figures"
+
+#: Where the figures of a run started without plotting wait to be drawn.
+#:
+#: Apart from the queue, which a failed render leaves behind for inspection:
+#: these are the only copy of figures the user asked to draw later, by
+#: `package.render_figures`, without the analysis being run again. Not under
+#: `temp/` either, so clearing the temporary data costs them nothing — a
+#: specification is self-contained.
+DEFERRED_DIRECTORY = ".mosna-figures-deferred"
 
 #: The document inside one queued figure's folder.
 DOCUMENT_NAME = "figure.json"
@@ -154,6 +164,54 @@ def pending(working_dir) -> list[Path]:
     ]
 
 
+def deferred_directory(working_dir) -> Path:
+    """Where the figures set aside by runs without plotting wait."""
+    return Path(working_dir) / DEFERRED_DIRECTORY
+
+
+def defer(working_dir) -> int:
+    """Keep everything queued for later instead of drawing it.
+
+    For a run started *without plotting figures*: the queue is moved, whole,
+    into a batch of its own under `DEFERRED_DIRECTORY`, named after the moment
+    it was set aside so that the batches are drawn in the order the runs ended.
+    Two runs that describe the same file then leave the later one's figure on
+    disk, as they would have if each had drawn its own.
+
+    Returns the number of figures set aside.
+    """
+    waiting = pending(working_dir)
+    if not waiting:
+        return 0
+
+    target = deferred_directory(working_dir) / f"{time.time_ns():020d}-{os.getpid():07d}"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(queue_directory(working_dir)), str(target))
+    print(
+        f"[QT_INFO] {len(waiting)} figures set aside, not drawn. "
+        'Press "Plot all figures" to draw them without computing again.',
+        flush=True,
+    )
+    return len(waiting)
+
+
+def finish(working_dir, formats=DEFAULT_FORMATS) -> int:
+    """Draw what the step queued, or set it aside if it ran without figures."""
+    from package.utils.read_config import figures_wanted
+
+    if figures_wanted():
+        return render(working_dir, formats)
+    return defer(working_dir)
+
+
+def deferred_batches(working_dir) -> list[Path]:
+    """The batches set aside by `defer`, oldest first."""
+    directory = deferred_directory(working_dir)
+    if not directory.is_dir():
+        return []
+    return sorted(batch for batch in directory.iterdir() if batch.is_dir())
+
+
 def render(working_dir, formats=DEFAULT_FORMATS) -> int:
     """Draw everything queued, then remove the queue.
 
@@ -204,3 +262,21 @@ def render(working_dir, formats=DEFAULT_FORMATS) -> int:
             file=sys.stderr,
         )
     return len(waiting)
+
+
+def draw_queue(directory, formats=DEFAULT_FORMATS) -> bool:
+    """Hand one queue directory to the renderer; True when every figure drew."""
+    command = [
+        renderer_interpreter(),
+        "-m",
+        "mosna_xy",
+        "render",
+        str(directory),
+        "--formats",
+        ",".join(formats),
+    ]
+    try:
+        return subprocess.run(command, check=False).returncode == 0
+    except OSError as error:
+        print(f"the figures were not drawn: {error}", file=sys.stderr)
+        return False

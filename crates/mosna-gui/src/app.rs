@@ -69,6 +69,9 @@ pub struct MosnaApp {
     /// `(current, total)`, or `None` for an indeterminate bar.
     pub progress: Option<(usize, usize)>,
     pub active_step: Option<Step>,
+    /// The "Without plotting figures" boxes at the top of the three analysis
+    /// panels.
+    pub without_figures: crate::model::runner::WithoutFigures,
     pub last_run_failed: bool,
     pub run: Option<Run>,
 
@@ -121,6 +124,7 @@ impl MosnaApp {
             status: "Ready.".to_string(),
             progress: None,
             active_step: None,
+            without_figures: Default::default(),
             last_run_failed: false,
             run: None,
             documentation: Documentation::build(),
@@ -252,7 +256,9 @@ impl MosnaApp {
             return;
         }
 
-        let arguments = step.arguments(&self.config_path, &working_dir);
+        let arguments = self
+            .without_figures
+            .arguments(step, &self.config_path, &working_dir);
         self.log.clear();
         if let Err(error) = self.spawn(step, &arguments, &working_dir) {
             self.notice = Some(error);

@@ -6,7 +6,7 @@ from tqdm import tqdm
 from package.utils.read_config import get_config, get_arguments
 from package.utils.assert_params import assert_params
 from package.utils.emit_qt_progress import emit_qt_info
-from package.utils.figure_queue import render
+from package.utils.figure_queue import finish
 from package.utils.read_extension import get_opener
 from package.utils.find_sample import find_sample
 from package.core.assortativity.assort_figures_abundance import assort_figures_abundance
@@ -45,7 +45,8 @@ def main():
     try:
         _analyse()
     finally:
-        render(Path(working_dir))
+        # Drawn now, or set aside when the step runs without figures.
+        finish(Path(working_dir))
 
 
 def _analyse():

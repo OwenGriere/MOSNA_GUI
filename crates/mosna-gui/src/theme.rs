@@ -72,6 +72,11 @@ pub const STEP_TYSSERAND: Color32 = Color32::from_rgb(0x6B, 0x52, 0x0C);
 pub const STEP_ASSORTATIVITY: Color32 = Color32::from_rgb(0xA8, 0x86, 0x2A);
 pub const STEP_NICHES: Color32 = Color32::from_rgb(0xDC, 0xC2, 0x72);
 pub const STEP_CLEAR: Color32 = Color32::from_rgb(0x4E, 0x55, 0x5C);
+/// The button that draws the figures set aside, beside the clear.
+///
+/// Off the gold ramp and off the graphite alike: it shares a row with the
+/// button that deletes, and has to be told apart from it at a glance.
+pub const STEP_FIGURES: Color32 = Color32::from_rgb(0x4B, 0x3F, 0x7D);
 /// A failed run turns the progress bar this colour.
 pub const STEP_FAILED: Color32 = Color32::from_rgb(0xA3, 0x24, 0x1B);
 
@@ -342,6 +347,7 @@ pub fn step_colour(step: crate::model::runner::Step) -> Color32 {
         Step::Tysserand => STEP_TYSSERAND,
         Step::Assortativity => STEP_ASSORTATIVITY,
         Step::NicheAnalysis => STEP_NICHES,
+        Step::PlotFigures => STEP_FIGURES,
         Step::ClearTemporary => STEP_CLEAR,
     }
 }
@@ -392,6 +398,7 @@ mod tests {
             STEP_TYSSERAND,
             STEP_ASSORTATIVITY,
             STEP_NICHES,
+            STEP_FIGURES,
             STEP_CLEAR,
             STEP_FAILED,
             ACCENT,
