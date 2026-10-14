@@ -6,6 +6,7 @@ members = [
     "crates/mosna-io",
     "crates/mosna-gui",
     "crates/mosna-setup",
+    "crates/mosna-mcp",
 ]
 
 [workspace.package]
