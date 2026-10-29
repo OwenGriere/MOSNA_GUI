@@ -1,0 +1,28 @@
+name: Push main to target repo
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (historique complet)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurer la clé SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.TARGET_DEPLOY_KEY }}
+
+      - name: Ajouter github.com aux hôtes connus
+        run: ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Push vers le dépôt cible
+        run: |
+          git remote add target git@github.com:VeraPancaldiLab/MOSNA_GUI.git
+          git push target main:main --force
