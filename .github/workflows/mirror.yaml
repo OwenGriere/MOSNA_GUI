@@ -7,7 +7,7 @@ on:
 
 jobs:
   mirror:
-    if: github.repository == 'VeraPancaldiLab/MOSNA_GUI.git'
+    if: github.repository == 'OwenGriere/MOSNA_GUI.git'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout (historique complet)
