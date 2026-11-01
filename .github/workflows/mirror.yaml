@@ -7,6 +7,7 @@ on:
 
 jobs:
   mirror:
+    if: github.repository == 'OwenGriere/MOSNA_GUI'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout (historique complet)
