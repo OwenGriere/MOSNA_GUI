@@ -38,7 +38,8 @@ def draw_per_sample(node_file,
                     sample_column,
                     extension,
                     edges_file=None,
-                    working_dir=None):
+                    working_dir=None,
+                    trimming=None):
 
     opener = get_opener(extension)
     node = opener(node_file)
@@ -54,7 +55,10 @@ def draw_per_sample(node_file,
     coords = node[[X_position, Y_position]].to_numpy()
 
     if edges_file is None:
-        pairs = ty.build_delaunay(coords)
+        # `trimming` holds the per-node rule's three settings from the
+        # configuration (`trim_dist_ratio`, `n_edges`, `min_dist`). Without it
+        # the call is tysserand's own default, as it always was.
+        pairs = ty.build_delaunay(coords, **(trimming or {}))
         pairs = ty.link_solitaries(coords, pairs, method=method,
                                    min_neighbors=min_neighbors, verbose=0)
     else:

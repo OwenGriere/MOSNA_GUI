@@ -16,6 +16,12 @@ from package.core.tysserand.generate_cmap import generate_cmap
 def worker_draw(args):
     return draw_per_sample(*args)
 
+
+def _setting(config, key, default):
+    """A trimming setting, or its default when the key is absent or null."""
+    value = config.get(key)
+    return default if value is None else value
+
 def main():
     analyse = "Tysserand"
 
@@ -32,6 +38,15 @@ def main():
 
     net_dir = Path(working_dir).expanduser().resolve() / Path(config['Nodes directory']).expanduser()
     net_dir_list = find_sample(net_dir, config['Extension'], config["Patient column name"], config["Sample column name"])
+
+    # The Delaunay trimming of the Parameters panel. The three keys are
+    # optional: a configuration written before they existed falls back to
+    # tysserand 0.6.0's defaults, and so builds the network it always did.
+    trimming = {
+        "trim_dist_ratio": _setting(config, "Trim distance ratio", 2),
+        "n_edges": _setting(config, "Trim number of edges", 3),
+        "min_dist": _setting(config, "Trim min distance", 0),
+    }
 
     cpu_max = verif_cpu(config['CPU'], len(net_dir_list))
     c_map = generate_cmap(net_dir, config['Phenotype column'], config['Extension'], config["Patient column name"], config["Sample column name"])
@@ -52,7 +67,9 @@ def main():
             config["Patient column name"],
             config["Sample column name"],
             config['Extension'],
-            None
+            None,      # edges_file: the network is built here, not read
+            None,      # working_dir: no figure is queued, see above
+            trimming,
             )
             for patient_sample in net_dir_list]
     

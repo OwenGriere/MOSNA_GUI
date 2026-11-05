@@ -12,6 +12,7 @@ def assert_params(analyse_to_perform, config):
         assert isinstance(config['Extension'],str), "Extension parameter must be str"
         assert isinstance(config['CPU'], int), "CPU parameter must be int"
         assert isinstance(config['Min neighbors'], int), "CPU parameter must be int"
+        _assert_delaunay_trimming(config)
 
     elif analyse_to_perform == "Assortativity":
         assert isinstance(config["Phenotype column"],str), "Phenotype column parameter must be str"
@@ -65,3 +66,32 @@ def assert_params(analyse_to_perform, config):
             assert config[verification_process]["normalize"] in ['total', 'niche', 'obs', 'clr', 'niche&obs', 'all']
 
     return None
+
+def _is_number(value):
+    # `bool` is an `int` in Python; `Trim distance ratio: true` is not a ratio.
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _assert_delaunay_trimming(config):
+    """The three optional Delaunay trimming keys: absent or null means the
+    tysserand default, anything else must be a number in range.
+
+    Same rules and messages as the Rust validation. `n_edges` must be at least
+    1: at 0, tysserand reads `sorted[-1]`, the *longest* edge, which is a
+    different rule entirely.
+    """
+    ratio = config.get("Trim distance ratio")
+    if ratio is not None:
+        assert _is_number(ratio), "Trim distance ratio must be a number"
+        assert ratio > 0 and ratio != float("inf"), \
+            f"Trim distance ratio must be greater than 0, got {ratio}"
+
+    n_edges = config.get("Trim number of edges")
+    if n_edges is not None:
+        assert isinstance(n_edges, int) and not isinstance(n_edges, bool) and n_edges >= 1, \
+            "Trim number of edges must be an integer of at least 1"
+
+    floor = config.get("Trim min distance")
+    if floor is not None:
+        assert _is_number(floor), "Trim min distance must be a number"
+        assert 0 <= floor < float("inf"), f"Trim min distance must be 0 or more, got {floor}"

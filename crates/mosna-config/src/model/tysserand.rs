@@ -30,6 +30,22 @@ impl EdgesMethod {
     }
 }
 
+/// Key of the per-node trimming ratio (`trim_dist_ratio` in tysserand).
+pub const TRIM_DISTANCE_RATIO: &str = "Trim distance ratio";
+/// Key of the reference edge rank (`n_edges` in tysserand).
+pub const TRIM_NUMBER_OF_EDGES: &str = "Trim number of edges";
+/// Key of the length below which no edge is trimmed (`min_dist` in tysserand).
+pub const TRIM_MIN_DISTANCE: &str = "Trim min distance";
+
+/// The three Delaunay trimming keys, in the order the interface shows them.
+pub const TRIM_KEYS: [&str; 3] = [TRIM_DISTANCE_RATIO, TRIM_NUMBER_OF_EDGES, TRIM_MIN_DISTANCE];
+
+/// tysserand 0.6.0's `build_delaunay` defaults, which an absent key falls back
+/// to: `trim_dist_ratio=2`, `n_edges=3`, `min_dist=0`.
+pub const DEFAULT_TRIM_DISTANCE_RATIO: f64 = 2.0;
+pub const DEFAULT_TRIM_NUMBER_OF_EDGES: usize = 3;
+pub const DEFAULT_TRIM_MIN_DISTANCE: f64 = 0.0;
+
 /// Parameters driving step 1, the spatial network reconstruction.
 #[derive(Debug, Clone)]
 pub struct TysserandConfig {
